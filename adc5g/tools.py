@@ -1,48 +1,109 @@
 from math import pi
 from time import sleep
-from struct import unpack
+from struct import pack, unpack
 from matplotlib.mlab import (
     psd, detrend_mean,
 )
 from numpy import (
-    array, sinc, sum, max, log10,
+    array, sinc, sum, max, log10, floor,
 )
 
 
-CTRL_FMT = "snap_{chan}_ctrl"
-BRAM_FMT = "snap_{chan}_bram"
+SPI_DATA_FMT = '>H2B'
+CONTROL_REG_ADDR = 0x01 + 0x80
+CHANSEL_REG_ADDR = 0x0f + 0x80
+EXTOFFS_REG_ADDR = 0x20 + 0x80
+EXTGAIN_REG_ADDR = 0x22 + 0x80
+EXTPHAS_REG_ADDR = 0x24 + 0x80
+CALCTRL_REG_ADDR = 0x10 + 0x80
+ADC_CONTROLLER = 'adc5g_controller'
 
 
-def get_snapshot(roach, chan, length=2**14, 
-                 bitwidth=8, ctrl_fmt=CTRL_FMT, bram_fmt=BRAM_FMT, 
-                 force=True):
+def set_spi_register(roach, zdok_n, reg_addr, reg_val):
+    """
+    Sets the value of an ADC's register over SPI
+    """
+    spi_data = pack(SPI_DATA_FMT, reg_val, reg_addr, 0x01)
+    roach.blindwrite(ADC_CONTROLLER, spi_data, offset=0x4+zdok_n*0x4)
+
+
+def set_spi_control(roach, zdok_n, adcmode=8, stdby=0, dmux=1, bg=1, bdw=3, fs=0, test=0):
+    """
+    Sets the control register of an ADC over SPI.
+    
+    Default mode is DMUX=1:1, gray-code, and channel A only.
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
+         specifically section 8.7.3 for more details and possible values.
+    """
+    reg_val = adcmode + (stdby<<4) + (dmux<<6) + (bg<<7) + (bdw<<8) + (fs<<10) + (test<<12)
+    set_spi_register(roach, zdok_n, CONTROL_REG_ADDR, reg_val)
+
+
+def set_spi_offset(roach, zdok_n, chan, offset):
+    """
+    Sets the offset value of one of the four channels on an ADC over SPI.
+    
+    The offset is a float ranging from -50 mV to +50 mV (with a resolution of 0.4 mV).
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
+         specifically section 8.7.14 for more details and possible values.
+    """
+    reg_val = floor(offset*(255/100.)) + 0x80
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    set_spi_register(roach, zdok_n, EXTOFFS_REG_ADDR, reg_val)
+    set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<2)
+
+
+def set_spi_gain(roach, zdok_n, chan, gain):
+    """
+    Sets the gain value of one of the four channels on an ADC over SPI.
+    
+    The gain is a float ranging from -18% to +18% (with a resolution of 0.14%).
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
+         specifically section 8.7.16 for more details and possible values.
+    """
+    reg_val = floor(gain*(255/36.)) + 0x80
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    set_spi_register(roach, zdok_n, EXTGAIN_REG_ADDR, reg_val)
+    set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<4)
+
+
+def set_spi_phase(roach, zdok_n, chan, phase):
+    """
+    Sets the phase value of one of the four channels on an ADC over SPI.
+    
+    The phase is a float ranging from -14 ps to +14 ps (with a resolution of 110 fs).
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
+         specifically section 8.7.18 for more details and possible values.
+    """
+    reg_val = floor(phase*(255/28.)) + 0x80
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    set_spi_register(roach, zdok_n, EXTPHAS_REG_ADDR, reg_val)
+    set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<6)
+
+
+def get_snapshot(roach, snap_name, bitwidth=8):
     """
     Reads a one-channel snapshot off the given 
     ROACH and returns the time-ordered samples.
     """
 
-    roach.write_int(ctrl_fmt.format(chan=chan), 2)
-    roach.write_int(ctrl_fmt.format(chan=chan), 3)
-
-    if force:
-        roach.write_int('force_capture', 0)
-        roach.write_int('force_capture', 1)
-        
-    bram_name = bram_fmt.format(chan=chan)
-    data = unpack('%iB' %length, roach.read(bram_name, length))
+    grab = roach.snapshot_get(snap_name)
+    data = unpack('%iB' %grab['length'], grab['data'])
 
     return array(data)
 
 
-def get_psd(roach, chan, samp_freq, length=2**14,
-            bitwidth=8, ctrl_fmt=CTRL_FMT, bram_fmt=BRAM_FMT,
-            force=True, NFFT=256):
+def get_psd(roach, snap_name, samp_freq, bitwidth=8, NFFT=256):
     """
     Reads data off a given channel on a ROACH and calculates
     the power spectral density of the time-series.
     """
 
-    data = get_snapshot(roach, chan, length, bitwidth, ctrl_fmt, bram_fmt, force)
+    data = get_snapshot(roach, snap_name, bitwidth)
     power, freqs = psd(data, NFFT=NFFT, Fs=samp_freq, detrend=detrend_mean, scale_by_freq=True)
 
     return power, freqs
