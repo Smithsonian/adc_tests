@@ -1,11 +1,11 @@
-from math import pi
+from math import pi, floor
 from time import sleep
 from struct import pack, unpack
 from matplotlib.mlab import (
     psd, detrend_mean,
 )
 from numpy import (
-    array, sinc, sum, max, log10, floor,
+    array, sinc, sum, max, log10
 )
 
 
@@ -82,7 +82,7 @@ def set_spi_offset(roach, zdok_n, chan, offset):
     See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
          specifically section 8.7.14 for more details and possible values.
     """
-    reg_val = floor(offset*(255/100.)) + 0x80
+    reg_val = floor(0.5 + offset*(255/100.)) + 0x80
     set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
     set_spi_register(roach, zdok_n, EXTOFFS_REG_ADDR, reg_val)
     set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<2)
@@ -111,7 +111,7 @@ def set_spi_gain(roach, zdok_n, chan, gain):
     See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
          specifically section 8.7.16 for more details and possible values.
     """
-    reg_val = floor(gain*(255/36.)) + 0x80
+    reg_val = floor(0.5+gain*(255/36.)) + 0x80
     set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
     set_spi_register(roach, zdok_n, EXTGAIN_REG_ADDR, reg_val)
     set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<4)
@@ -140,7 +140,7 @@ def set_spi_phase(roach, zdok_n, chan, phase):
     See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf
          specifically section 8.7.18 for more details and possible values.
     """
-    reg_val = floor(phase*(255/28.)) + 0x80
+    reg_val = floor(0.5+phase*(255/28.)) + 0x80
     set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
     set_spi_register(roach, zdok_n, EXTPHAS_REG_ADDR, reg_val)
     set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2<<6)
