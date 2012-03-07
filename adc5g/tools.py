@@ -34,7 +34,7 @@ def get_spi_register(roach, zdok_n, reg_addr):
     spi_data = pack(SPI_DATA_FMT, 0x0, reg_addr, 0x01)
     roach.blindwrite(ADC_CONTROLLER, spi_data, offset=0x4+zdok_n*0x4)
     raw = roach.read(ADC_CONTROLLER, 0x4, offset=0x4+zdok_n*0x4)
-    print raw.encode('string_escape')
+    #print raw.encode('string_escape')
     reg_val, old_reg_addr, config_done = unpack(SPI_DATA_FMT, raw)
     if old_reg_addr is not reg_addr:
         raise ValueError("Could not read SPI register!")
@@ -160,6 +160,19 @@ def get_spi_phase(roach, zdok_n, chan):
     return (reg_val - 0x80)*(28./255)
 
 
+def inc_mmcm_phase(roach, zdok_n, inc=1):
+    """
+    This increments (or decrements) the MMCM clk-to-data phase relationship by 
+    (1/56) * Pvco, where VCO is depends on the MMCM configuration.
+
+    inc_mmcm_phase(roach, zdok_n)        # default increments
+    inc_mmcm_phase(roach, zdok_n, inc=0) # set inc=0 to decrement
+    """
+    reg_val = pack(SPI_DATA_FMT, (1<<(zdok_n*4)) + (inc<<(1+zdok_n*4)), 0x0, 0x0)
+    #print reg_val.encode('string_escape')
+    roach.blindwrite(ADC_CONTROLLER, reg_val, offset=0x0)
+
+
 def get_snapshot(roach, snap_name, bitwidth=8):
     """
     Reads a one-channel snapshot off the given 
@@ -170,6 +183,22 @@ def get_snapshot(roach, snap_name, bitwidth=8):
     data = unpack('%iB' %grab['length'], grab['data'])
 
     return array(data)
+
+
+def get_test_vector(roach, zdok_n, snap_name, bitwidth=8):
+    """
+    Sets the ADC to output a test ramp and reads off the ramp,
+    one per core. This should allow a calibration of the MMCM
+    phase parameter to reduce bit errors.
+
+    core_a, core_c, core_b, core_d = get_test_vector(roach, zdok_n, snap_name)
+
+    NOTE: This does not return the ADC to it's original configuration!
+    """
+    set_spi_control(roach, zdok_n, test=1)
+    data = get_snapshot(roach, snap_name, bitwidth)
+    data_bin = (data>>1) ^ data
+    return data_bin[0::4], data_bin[1::4], data_bin[2::4], data_bin[3::4]
 
 
 def get_psd(roach, snap_name, samp_freq, bitwidth=8, NFFT=256):
