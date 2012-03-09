@@ -1,0 +1,76 @@
+import sys
+import katcp_wrapper
+roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
+import adc5g
+#import matplotlib.pyplot as plt
+import numpy
+from pylab import *
+from numpy import savetxt
+import fit_cores
+interactive(True)
+def dosnap(freq, name):
+  snap=adc5g.get_snapshot(roach2, "snap_a")
+  numpy.savetxt(name, snap,fmt='%d')
+  fit_cores.fitc(freq, 5000, name)
+def dotest():
+  adc5g.set_spi_control(roach2, 0, test=1)
+  corea, corec, coreb, cored = adc5g.get_test_vector(roach2, 0, 'snap_a')
+  plot(corea)
+  adc5g.set_spi_control(roach2, 0)
+def dopsd(nfft = 256):
+  power, freqs = adc5g.get_psd(roach2, 'snap_a', 5e9, 8, nfft)
+  step(freqs, 10*log10(power))
+def program():
+  roach2.progdev('adc5g_r2_snap.bof')
+def calibrate():
+  t = adc5g.calibrate_mmcm_phase(roach2, 0, "snap_a", bitwidth=8)
+  print t
+def set():
+  adc5g.set_spi_control(roach2, 0) # the 0 is for zdok 0
+  set_offs(.1, -.5634, .9801, -.7308)
+  set_gains(-.05, .3843, .7186, -1)
+  set_phase(.2, -.12, .04, -.25)
+def clear_params():
+  for core in range(1,5):
+    adc5g.set_spi_gain(roach2,0, core, 0)
+    adc5g.set_spi_offset(roach2,0, core, 0)
+    adc5g.set_spi_phase(roach2,0, core, 0)
+def set_offs(o1, o2, o3, o4):
+  t = -float(o1)
+  print floor(.5+t*255/100.)+0x80,
+  adc5g.set_spi_offset(roach2,0, 1, t)
+  t = -float(o2)
+  print floor(.5+t*255/100.)+0x80,
+  adc5g.set_spi_offset(roach2,0, 2, t)
+  t = -float(o3)
+  print floor(.5+t*255/100.)+0x80,
+  adc5g.set_spi_offset(roach2,0, 3, t)
+  t = -float(o4)
+  print floor(.5+t*255/100.)+0x80
+  adc5g.set_spi_offset(roach2,0, 4, t)
+def set_gains(g1, g2, g3, g4):
+  t = -float(g1)
+  print floor(.5+t*255/36.)+0x80,
+  adc5g.set_spi_gain(roach2,0, 1, t)
+  t = -float(g2)
+  print floor(.5+t*255/36.)+0x80,
+  adc5g.set_spi_gain(roach2,0, 2, t)
+  t = -float(g3)
+  print floor(.5+t*255/36.)+0x80,
+  adc5g.set_spi_gain(roach2,0, 3, t)
+  t = -float(g4)
+  print floor(.5+t*255/36.)+0x80
+  adc5g.set_spi_gain(roach2,0, 4, t)
+def set_phase(p1, p2, p3, p4):
+  t = -float(p1)
+  print floor(.5+t*255/28.)+0x80,
+  adc5g.set_spi_phase(roach2,0, 1, t)
+  t = -float(p2)
+  print floor(.5+t*255/28.)+0x80,
+  adc5g.set_spi_phase(roach2,0, 2, t)
+  t = -float(p3)
+  print floor(.5+t*255/28.)+0x80,
+  adc5g.set_spi_phase(roach2,0, 3, t)
+  t = -float(p4)
+  print floor(.5+t*255/28.)+0x80
+  adc5g.set_spi_phase(roach2,0, 4, t)
