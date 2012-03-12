@@ -248,14 +248,14 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8):
     return optimal_ps, glitches_per_ps
 
 
-def get_psd(roach, snap_name, samp_freq, bitwidth=8, NFFT=256):
+def get_psd(roach, snap_name, samp_freq, bitwidth=8, nfft=256):
     """
     Reads data off a given channel on a ROACH and calculates
     the power spectral density of the time-series.
     """
 
     data = get_snapshot(roach, snap_name, bitwidth)
-    power, freqs = psd(data, NFFT=NFFT, Fs=samp_freq, detrend=detrend_mean, scale_by_freq=True)
+    power, freqs = psd(data, nfft, Fs=samp_freq, detrend=detrend_mean, scale_by_freq=True)
 
     return power, freqs
 
