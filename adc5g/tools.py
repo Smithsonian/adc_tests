@@ -15,6 +15,7 @@ CHANSEL_REG_ADDR = 0x0f + 0x80
 EXTOFFS_REG_ADDR = 0x20 + 0x80
 EXTGAIN_REG_ADDR = 0x22 + 0x80
 EXTPHAS_REG_ADDR = 0x24 + 0x80
+FIRST_EXTINL_ADDR = 0x30 + 0x80
 CALCTRL_REG_ADDR = 0x10 + 0x80
 ADC_CONTROLLER = 'adc5g_controller'
 
@@ -159,6 +160,52 @@ def get_spi_phase(roach, zdok_n, chan):
     reg_val = get_spi_register(roach, zdok_n, EXTPHAS_REG_ADDR-0x80)
     return (reg_val - 0x80)*(28./255)
 
+def set_inl_registers(roach, zdok_n, chan, bits):
+    """
+    Sets the Integral NonLinearity bits of one of the four channels on
+    an ADC over SPI.
+    
+    The bits are packed into six 16-bit registers on the adc in a
+    way that must make sense to the hardware designer. This subroutine
+    takes its arguments in a way that is easier to explain
+
+    The 'bits' argument should be an array of four 17-bit
+    integers.  In each integer, the bits from bit 0 (lsb) to 16
+    correspond to adc outputs codes of 0, 16, 32, ... 240, 255.
+    A bit set in the first integer will increase the threshold
+    for the corresponding code by 0.45 lsb (First Level Increase).
+    Bits in the second int increase by 0.15 lsb (Second Level Increastr).
+    The third dereases the threshold by 0.15 lsb and the fourth
+    decreases by 0.45 lsb (First and Second Level Decrease)
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf,
+         specifically section 8.7.19 through 8.8, for more details.
+    """
+  # create a array of 6 ints to hold the values for the registers
+    regs = zeros((6), dtype='int32')
+    r = 2         # r is the relative register number.  r = 2 for 0x32 and 0x35
+    outbit = 0x100	#  outbit is the bit in the register
+    for ib in range(17):  # n is the bit number in the incoming bits aray
+        mask = 1<<ib
+    if bits[0] & mask:
+        regs[r] |= outbit
+    if bits[1] & mask:
+        regs[r+3] |= outbit
+    outbit <<= 1
+    if bits[2] & mask:
+        regs[r] |= outbit
+    if bits[3] & mask:
+        regs[r+3] |= outbit
+    if outbit == 0x8000:
+        outbit = 1
+        r -= 1
+    else:
+        outbit <<= 1
+
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    for n in range(6):
+        set_spi_register(roach, zdok_n, FIRST_EXTINL_ADDR+n, regs[n])
+    set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2)
 
 def inc_mmcm_phase(roach, zdok_n, inc=1):
     """
