@@ -111,24 +111,24 @@ def fitc(sig_freq, samp_freq, df_name):
   a4p = 100*(amp4 - avamp)/avamp
   avdly = (dly1+dly2+dly3+dly4)/4.0
   print "#%6.2f  zero(mV) amp(%%)  dly(ps)" % (sig_freq)
-  print "#avg    %7.4f %7.4f %8.2f" %  (avz, avamp, avdly)
-  print "core A  %7.4f %7.4f %8.2f" %  (z1-avz, a1p, dly1-avdly)
-  print "core B  %7.4f %7.4f %8.2f" %  (z3-avz, a3p, dly3-avdly)
-  print "core C  %7.4f %7.4f %8.2f" %  (z2-avz, a2p, dly2-avdly)
-  print "core D  %7.4f %7.4f %8.2f" %  (z4-avz, a4p, dly4-avdly)
+  print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
+  print "core A  %7.4f %7.4f %8.4f" %  (z1-avz, a1p, dly1-avdly)
+  print "core B  %7.4f %7.4f %8.4f" %  (z3-avz, a3p, dly3-avdly)
+  print "core C  %7.4f %7.4f %8.4f" %  (z2-avz, a2p, dly2-avdly)
+  print "core D  %7.4f %7.4f %8.4f" %  (z4-avz, a4p, dly4-avdly)
   print
 
-  print >> ffd, "%7.4f %7.4f %8.5f %7.4f %7.4f %8.5f %7.4f %7.4f %8.5f %7.4f %7.4f %8.5f" % (z1-avz, amp1-avamp, dly1-avdly, z2-avz, amp2-avamp, dly2-avdly, z3-avz, amp3-avamp, dly3-avdly, z4-avz, amp4-avamp, dly4-avdly)
+  print >> ffd, "%9.4f %9.4f %9.4f %7.4f %7.4f %8.4f %7.4f %7.4f %8.4f %7.4f %7.4f %8.4f %7.4f %7.4f %8.4f" % (sig_freq, avz, avamp, z1-avz, a1p, dly1-avdly, z3-avz, a3p, dly3-avdly, z2-avz, a2p, dly2-avdly, z4-avz, a4p, dly4-avdly)
   
   Fit1 = fitval(plsq1[0], args1[0], args1[1])
   for i in range(data_cnt/4):
     print >>ffd1, "%d %d %.2f" % (4 * i, core1[i], Fit1[i])
   Fit2 = fitval(plsq2[0], args2[0], args2[1])
   for i in range(data_cnt/4):
-    print >>ffd2, "%d %d %.2f" % (4 * i + 1, core2[i], Fit2[i])
+    print >>ffd3, "%d %d %.2f" % (4 * i + 1, core2[i], Fit2[i])
   Fit3 = fitval(plsq3[0], args3[0], args3[1])
   for i in range(data_cnt/4):
-    print >>ffd3, "%d %d %.2f" % (4 * i + 2, core3[i], Fit3[i])
+    print >>ffd2, "%d %d %.2f" % (4 * i + 2, core3[i], Fit3[i])
   Fit4 = fitval(plsq4[0], args4[0], args4[1])
   for i in range(data_cnt/4):
     print >>ffd4, "%d %d %.2f" % (4 * i + 3, core4[i], Fit4[i])
