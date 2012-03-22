@@ -78,14 +78,14 @@ def dopsd(nfft = 16384, rpt = 10):
     print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 def multifreq(start=17, end=1024, step=17):
   """
-  Calls dopsd for a range of frequencies.
+  Calls dosnap for a range of frequencies.
   """
   for n in range(start, end, step):
     set_freq(.3051758*n)
     dosnap()
 def multipwr(start = 1, end = -40, step = -3):
   """
-  Calls dopsd for a range of powers
+  Calls dosnap for a range of powers
   """
   for n in range(start, end, step):
     set_pwr(n)
