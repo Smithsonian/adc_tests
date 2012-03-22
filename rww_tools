@@ -7,7 +7,7 @@ import adc5g
 #import matplotlib.pyplot as plt
 import numpy
 #from pylab import *
-from numpy import savetxt
+#from numpy import savetxt
 import fit_cores
 #interactive(True)
 lanio = "lanio 131.142.9.146 "
@@ -39,7 +39,7 @@ def dosnap(fr=0, name="t", rpt = 1):
     fr = freq
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, "snap_a")
-    numpy.savetxt(name, snap,fmt='%d')
+    savetxt(name, snap,fmt='%d')
     fit_cores.fitc(fr, 5000, name)
 def dotest(plotcore = 1):
   """
@@ -73,9 +73,11 @@ def dopsd(nfft = 16384, rpt = 10):
       sp += power
   sp /= rpt
   step(freqs, 10*log10(sp))
-  fd = open("psd", 'w')
-  for i in range(len(sp)):
-    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
+  data = column_stack((freqs/1e6, 10*log10(sp)))
+  savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
+#  fd = open("psd", 'w')
+#  for i in range(len(sp)):
+#    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 def multifreq(start=17, end=1024, step=17):
   """
   Calls dosnap for a range of frequencies.
