@@ -1,41 +1,148 @@
+# run ipython rww_tools -pylab -i
 import sys
-import katcp_wrapper
+import os
+from corr import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 import adc5g
 #import matplotlib.pyplot as plt
 import numpy
-from pylab import *
+#from pylab import *
 from numpy import savetxt
 import fit_cores
-interactive(True)
-def dosnap(freq, name):
-  snap=adc5g.get_snapshot(roach2, "snap_a")
-  numpy.savetxt(name, snap,fmt='%d')
-  fit_cores.fitc(freq, 5000, name)
-def dotest():
+#interactive(True)
+lanio = "lanio 131.142.9.146 "
+freq = 10.070801
+pwr = 1.0
+def dosnap(fr=0, name="t", rpt = 1):
+  """
+  Takes a snapshot and uses fit_cores to fit a sine function to each
+  core separately assuming a CW signal is connected to the input.  The
+  offset, gain and phase differences are reoprted for each core as
+  well as the average of all four.
+
+  The parameters are:
+    fr   The frequency of the signal generator.  It will default to the last
+         frequency set by set_freq()
+    name the name of the file into which the snapshot is written.  5 other
+         files are written.  Name.c1 .. name.c4 contain themeasurements from
+	 cores a, b, c and d.  Note that data is taken from cores in the order
+	 a, c, b, d.  A line is appended to the file name.fit containing
+	 signal freq, average zero, average amplitude followed by triplets
+	 of zero, amplitude and phase differences for cores a, b, c and d
+
+    rpt  The number of repeats.  Defaults to 1.  The c1 .. c4 files mentioned
+         above are overwritten with each repeat, but new rows of data are added
+	 to the .fit file for each pass.
+  """
+  global freq
+  if fr == 0:
+    fr = freq
+  for i in range(rpt):
+    snap=adc5g.get_snapshot(roach2, "snap_a")
+    numpy.savetxt(name, snap,fmt='%d')
+    fit_cores.fitc(fr, 5000, name)
+def dotest(plotcore = 1):
+  """
+  Put the adc in test mode and get a sample of the test vector.  Plot core 1
+  by default.
+  """
   adc5g.set_spi_control(roach2, 0, test=1)
-  corea, corec, coreb, cored = adc5g.get_test_vector(roach2, 0, 'snap_a')
-  plot(corea)
+#  corea, corec, coreb, cored = adc5g.get_test_vector(roach2, 0, 'snap_a')
+  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, 0, 'snap_a')
+  if plotcore == 2:
+    plotcore = 3
+  elif plotcore == 3:
+    plotcore = 2
+  plot(cores[plotcore])
   adc5g.set_spi_control(roach2, 0)
-def dopsd(nfft = 256):
-  power, freqs = adc5g.get_psd(roach2, 'snap_a', 5e9, 8, nfft)
-  step(freqs, 10*log10(power))
+def dopsd(nfft = 16384, rpt = 10):
+  """
+  Takes a snapshot, then computes, plots and writes out the Power Spectral
+  Density functions.  The psd function is written into a file named "psd".
+  This file will be overwritten with each call.  Arguments:
+
+  nfft The number of points in the psd function.  Defaults to 16384.  Since
+       a snapshot has 16384 points, this is the maximum which should be used
+  rpt  The numper of mesurements to be averaged for the plot and output file. 
+  """
+  for i in range(rpt):
+    power, freqs = adc5g.get_psd(roach2, 'snap_a', 5e9, 8, nfft)
+    if i == 0:
+      sp = power
+    else:
+      sp += power
+  sp /= rpt
+  step(freqs, 10*log10(sp))
+  fd = open("psd", 'w')
+  for i in range(len(sp)):
+    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
+def multifreq(start=17, end=1024, step=17):
+  """
+  Calls dopsd for a range of frequencies.
+  """
+  for n in range(start, end, step):
+    set_freq(.3051758*n)
+    dosnap()
+def multipwr(start = 1, end = -40, step = -3):
+  """
+  Calls dopsd for a range of powers
+  """
+  for n in range(start, end, step):
+    set_pwr(n)
+    dosnap()
 def program():
+  """
+  Program the roach2 with the standard program.  After this, set() and
+  calibrate() should be called
+  """
   roach2.progdev('adc5g_r2_snap.bof')
 def calibrate():
+  """
+  Call Rurik's routine to calibrate the time delay at the adc interface.
+  """
   t = adc5g.calibrate_mmcm_phase(roach2, 0, "snap_a", bitwidth=8)
   print t
 def set():
+  """
+  Clear the control register and then load the offset, gain and phase
+  registers for each core.  These values are hard coded for now.
+  """
   adc5g.set_spi_control(roach2, 0) # the 0 is for zdok 0
   set_offs(.1, -.5634, .9801, -.7308)
-  set_gains(-.05, .3843, .7186, -1)
+  set_gains(-.05, .3843, .7186, -1.2)
   set_phase(.2, -.12, .04, -.25)
 def clear_params():
   for core in range(1,5):
     adc5g.set_spi_gain(roach2,0, core, 0)
     adc5g.set_spi_offset(roach2,0, core, 0)
     adc5g.set_spi_phase(roach2,0, core, 0)
+
+def set_freq(fr):
+  """
+  Set the synthesizer frequency and save the value for use by dosnap(), etc.
+  """
+  global freq
+  freq = fr
+  os.system(lanio + "\":FREQ " + str(fr) + " MHz\"")
+  
+def get_freq():
+  print os.system(lanio + "\"FREQ?\"")
+
+def set_pwr(p):
+  """
+  Set the synthesizer power and save the value for use by dosnap(), etc.
+  """
+  global pwr
+  pwr = p
+  os.system(lanio + "\":POW " + str(p) + " dBm\"")
+  
+def get_pwr():
+  print os.system(lanio + "\"POW?\"")
+
 def set_offs(o1, o2, o3, o4):
+  """
+  Set the offsets for each core in the order a, b, c, d.
+  """
   t = -float(o1)
   print floor(.5+t*255/100.)+0x80,
   adc5g.set_spi_offset(roach2,0, 1, t)
@@ -48,7 +155,15 @@ def set_offs(o1, o2, o3, o4):
   t = -float(o4)
   print floor(.5+t*255/100.)+0x80
   adc5g.set_spi_offset(roach2,0, 4, t)
+def get_offs():
+  for i in range(1,5):
+    print "%.3f " % -adc5g.get_spi_offset(roach2,0,i),
+  print
+
 def set_gains(g1, g2, g3, g4):
+  """
+  Set the gains for each core in the order a, b, c, d.
+  """
   t = -float(g1)
   print floor(.5+t*255/36.)+0x80,
   adc5g.set_spi_gain(roach2,0, 1, t)
@@ -61,7 +176,14 @@ def set_gains(g1, g2, g3, g4):
   t = -float(g4)
   print floor(.5+t*255/36.)+0x80
   adc5g.set_spi_gain(roach2,0, 4, t)
+def get_gains():
+  for i in range(1,5):
+    print "%.3f " % -adc5g.get_spi_gain(roach2,0,i),
+  print
 def set_phase(p1, p2, p3, p4):
+  """
+  Set the phases (delays) for each core in the order a, b, c, d.
+  """
   t = -float(p1)
   print floor(.5+t*255/28.)+0x80,
   adc5g.set_spi_phase(roach2,0, 1, t)
@@ -74,3 +196,7 @@ def set_phase(p1, p2, p3, p4):
   t = -float(p4)
   print floor(.5+t*255/28.)+0x80
   adc5g.set_spi_phase(roach2,0, 4, t)
+def get_phase():
+  for i in range(1,5):
+    print "%.3f " % -adc5g.get_spi_phase(roach2,0,i),
+  print
