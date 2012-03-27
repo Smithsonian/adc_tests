@@ -193,7 +193,6 @@ def set_inl_registers(roach, zdok_n, chan, offs):
 	i = level_to_bits[4-n]
 	regs[r] |= ((i >>2) & 3) << regbit
 	regs[r + 3] |= (i & 3)<< regbit
-#	print level, n, inl_bits[4 - n]
 	if regbit == 14:
 	    r -= 1
 	    regbit = 0
@@ -204,8 +203,6 @@ def set_inl_registers(roach, zdok_n, chan, offs):
     for n in range(6):
 	reg_val = float(regs[n])
         set_spi_register(roach, zdok_n, FIRST_EXTINL_REG_ADDR+n, reg_val)
-	print "%x " % (reg_val),
-    print type(reg_val)
     set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2)
 
 def get_inl_registers(roach, zdok_n, chan):
@@ -227,8 +224,6 @@ def get_inl_registers(roach, zdok_n, chan):
 	    r -= 1
 	else:
 	    regbit += 2
-	print offs[level],
-    print
     return offs
 
 def inc_mmcm_phase(roach, zdok_n, inc=1):
