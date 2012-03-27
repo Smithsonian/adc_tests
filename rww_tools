@@ -13,6 +13,9 @@ import fit_cores
 lanio = "lanio 131.142.9.146 "
 freq = 10.070801
 pwr = 1.0
+numpoints=16384
+samp_freq = 5000
+
 def dosnap(fr=0, name="t", rpt = 1):
   """
   Takes a snapshot and uses fit_cores to fit a sine function to each
@@ -40,7 +43,60 @@ def dosnap(fr=0, name="t", rpt = 1):
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, "snap_a")
     savetxt(name, snap,fmt='%d')
-    fit_cores.fitc(fr, 5000, name)
+    fit_cores.fitc(fr, samp_freq, name, i == 0, i == rpt-1)
+
+def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
+  """
+  Do the same analysis as dosnap, but on simulated data.
+  The arguments have the same meaning as dosnap except that freq is not
+  coupled to the global variable.  A random phase is generated for each pass
+  """
+
+  for i in range(rpt):
+    snap=get_sim_data(freq, exact)
+    savetxt(name, snap,fmt='%d')
+    fit_cores.fitc(freq, samp_freq, name, i == 0)
+
+def simpsd(freq=318.0, rpt = 1, exact=True):
+  """
+  Make a simulated snapshot and do teh psd analysis on it.  The
+  sine wave will have a randon start phase.
+  """
+  for i in range(rpt):
+    data = get_sim_data(freq, exact)
+    power, freqs = psd(data, numpoints, Fs=samp_freq*1e6, \
+        detrend=detrend_mean, scale_by_freq=True)
+    clf()
+    if i == 0:
+      sp = power
+    else:
+      sp += power
+  sp /= rpt
+  print "about to plot", len(freqs)
+  step(freqs, 10*log10(sp))
+  fd = open("sim.psd", 'w')
+  for i in range(len(sp)):
+    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i]))
+
+def get_sim_data(freq, exact=True):
+  """
+  Make a simulated snapshot of data
+  """
+  if exact:
+    offs = [0,0,0,0]
+    gains = [1,1,1,1]
+  else:
+    offs = [.2, .3, -.2, -.1]
+    gains = [1.001, .9984, .999, 1.002]
+  del_phi = 2 * math.pi * freq / samp_freq
+  data = numpy.empty((numpoints), dtype='int32')
+  phase = 2*math.pi * numpy.random.uniform()
+  for n in range(numpoints):
+    core = n&3
+    data[n] = (128 + floor(0.5 + 119.0 * math.sin(del_phi * n + phase) + \
+        offs[core]))*gains[core]
+  return data
+
 def dotest(plotcore = 1):
   """
   Put the adc in test mode and get a sample of the test vector.  Plot core 1
@@ -55,7 +111,8 @@ def dotest(plotcore = 1):
     plotcore = 2
   plot(cores[plotcore])
   adc5g.set_spi_control(roach2, 0)
-def dopsd(nfft = 16384, rpt = 10):
+
+def dopsd(nfft = numpoints, rpt = 10):
   """
   Takes a snapshot, then computes, plots and writes out the Power Spectral
   Density functions.  The psd function is written into a file named "psd".
@@ -78,20 +135,23 @@ def dopsd(nfft = 16384, rpt = 10):
 #  fd = open("psd", 'w')
 #  for i in range(len(sp)):
 #    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
-def multifreq(start=17, end=1024, step=17):
+
+def multifreq(start=17, end=1024, step=17, repeat=10):
   """
   Calls dosnap for a range of frequencies.
   """
   for n in range(start, end, step):
     set_freq(.3051758*n)
-    dosnap()
-def multipwr(start = 1, end = -40, step = -3):
+    dosnap(rpt=repeat)
+
+def multipwr(start = 1, end = -40, step = -3, repeat=10):
   """
   Calls dosnap for a range of powers
   """
   for n in range(start, end, step):
     set_pwr(n)
-    dosnap()
+    dosnap(rpt=repeat)
+
 def program():
   """
   Program the roach2 with the standard program.  After this, set() and
@@ -202,3 +262,11 @@ def get_phase():
   for i in range(1,5):
     print "%.3f " % -adc5g.get_spi_phase(roach2,0,i),
   print
+def clear_inl():
+  offs = [0.0]*17
+  for chan in range(1,5):
+    adc5g.set_inl_registers(roach2, 0, chan, offs)
+def get_inl():
+  for chan in range(1,5):
+    print "core %d" % (chan)
+    print adc5g.get_inl_registers(roach2, 0, chan)
