@@ -27,7 +27,7 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
   and phase of the four fits report the average and the difference of each
   core from the average.  Write a line in fname.fit giving these values.
-  Compute the average difference between the fitted value and emasured value
+  Compute the average difference between the fitted value and measured value
   for each level of each core averaged over the samples.
   """
   global sum_result, result_cnt, code_errors, ce_counts
@@ -215,8 +215,8 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
       print >>ffd4, "%d %d %.2f" % (4 * i + 3, code, Fit4[i])
     code_errors[code][3] += code - Fit4[i]
     ce_counts[code][3] += 1
-  rfd = open(df_name + '.res', "w")
   if prnt:
+    rfd = open(df_name + '.res', "w")
     for code in range(256):
       if ce_counts[code].min() > 4:
         e = code_errors[code]/ce_counts[code]
@@ -339,14 +339,14 @@ def get_inl_array(roach, zdok_n):
   inl[0] = range(0, 257,16)
   return inl.transpose()
 
-def get_fit_array(roach, zdok_n):
-  fit = zeros((12), dtype='float')
+def get_ogp_array(roach, zdok_n):
+  ogp = zeros((12), dtype='float')
   indx = 0
   for chan in range(1,5):
-    fit[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
+    ogp[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
     indx += 1
-    fit[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
+    ogp[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
     indx += 1
-    fit[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
+    ogp[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
     indx += 1
-  return fit
+  return ogp
