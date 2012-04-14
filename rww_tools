@@ -14,9 +14,9 @@ lanio = "lanio 131.142.9.146 "
 freq = 10.070801
 pwr = 1.0
 numpoints=16384
-samp_freq = 5000
+samp_freq = 5000.0
 
-def dosnap(fr=0, name="t", rpt = 1):
+def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
   """
   Takes a snapshot and uses fit_cores to fit a sine function to each
   core separately assuming a CW signal is connected to the input.  The
@@ -38,12 +38,16 @@ def dosnap(fr=0, name="t", rpt = 1):
 	 to the .fit file for each pass.
   """
   global freq
+  avg_pwr_sinad = 0
   if fr == 0:
     fr = freq
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, "snap_a")
     savetxt(name, snap,fmt='%d')
-    fit_cores.fitc(fr, samp_freq, name, i == 0, i == rpt-1)
+    t, pwr_sinad = fit_cores.fitc(fr, samp_freq, name,\
+       clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
+    avg_pwr_sinad += pwr_sinad
+  return t, avg_pwr_sinad/rpt
 
 def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
   """
@@ -59,7 +63,7 @@ def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
 
 def simpsd(freq=318.0, rpt = 1, exact=True):
   """
-  Make a simulated snapshot and do teh psd analysis on it.  The
+  Make a simulated snapshot and do the psd analysis on it.  The
   sine wave will have a randon start phase.
   """
   for i in range(rpt):
@@ -136,13 +140,32 @@ def dopsd(nfft = numpoints, rpt = 10):
 #  for i in range(len(sp)):
 #    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 
-def multifreq(start=17, end=1024, step=17, repeat=10):
+def multifreq(start=100, end=2400, step=300, repeat=10, save_fit = False,\
+    add_to_fit=False, fname = 'fit', do_sfdr=False):
   """
-  Calls dosnap for a range of frequencies.
+  Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
+  picked to have an even number of cycles in the 16384 point snapshot.
   """
-  for n in range(start, end, step):
-    set_freq(.3051758*n)
-    dosnap(rpt=repeat)
+  sfd = open('sinad', 'a')
+  f = samp_freq / numpoints
+  nstart = int(0.5+start/f)
+  nend = int(0.5+end/f)
+  nstep = int(0.5+step/f)
+  for n in range(nstart, nend, nstep):
+    freq = f*n
+    set_freq(freq)
+    t, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
+    sinad = 10.0*math.log10(avg_pwr_sinad)
+    print >>sfd, "%8.3f %7.2f" % (freq, sinad)
+    if do_sfdr:
+      dopsd()
+      fit_cores.dosfdr(freq)
+  if add_to_fit:
+    old_fit = genfromtxt(fname)
+    old_fit += t[3:]
+    savetxt(fname, old_fit, fmt="%8.4f")
+  elif save_fit:
+    savetxt(fname, t[3:], fmt="%8.4f")
 
 def multipwr(start = 1, end = -40, step = -3, repeat=10):
   """
@@ -164,28 +187,36 @@ def calibrate():
   """
   t = adc5g.calibrate_mmcm_phase(roach2, 0, "snap_a", bitwidth=8)
   print t
-def set():
+def set(fname = 'fit'):
   """
   Clear the control register and then load the offset, gain and phase
   registers for each core.  These values are hard coded for now.
   """
   adc5g.set_spi_control(roach2, 0) # the 0 is for zdok 0
-  set_offs(.1, -.5634, .9801, -.7308)
-  set_gains(-.05, .3843, .7186, -1.2)
-  set_phase(.2, -.12, .04, -.25)
+  t = genfromtxt(fname)
+  set_offs(t[0], t[3], t[6], t[9])
+  set_gains(t[1], t[4], t[7], t[10])
+  set_phase(-t[2], -t[5], -t[8], -t[11])
 def clear_params():
   for core in range(1,5):
     adc5g.set_spi_gain(roach2,0, core, 0)
     adc5g.set_spi_offset(roach2,0, core, 0)
     adc5g.set_spi_phase(roach2,0, core, 0)
 
-def set_freq(fr):
+def set_freq(fr, centered = False):
   """
   Set the synthesizer frequency and save the value for use by dosnap(), etc.
+  If centered is True, pick the closest frequency in the center of a channel
+  ie. wih]th an even number of cycles in a snapshot.
   """
   global freq
-  freq = fr
-  os.system(lanio + "\":FREQ " + str(fr) + " MHz\"")
+  if centered:
+    base_freq = samp_freq / numpoints
+    n = int(0.5 + fr/base_freq)
+    freq = base_freq*n
+  else:
+    freq=fr
+  os.system(lanio + "\":FREQ " + str(freq) + " MHz\"")
   
 def get_freq():
   print os.system(lanio + "\"FREQ?\"")
@@ -205,62 +236,62 @@ def set_offs(o1, o2, o3, o4):
   """
   Set the offsets for each core in the order a, b, c, d.
   """
-  t = -float(o1)
+  t = float(o1)
   print floor(.5+t*255/100.)+0x80,
   adc5g.set_spi_offset(roach2,0, 1, t)
-  t = -float(o2)
+  t = float(o2)
   print floor(.5+t*255/100.)+0x80,
   adc5g.set_spi_offset(roach2,0, 2, t)
-  t = -float(o3)
+  t = float(o3)
   print floor(.5+t*255/100.)+0x80,
   adc5g.set_spi_offset(roach2,0, 3, t)
-  t = -float(o4)
+  t = float(o4)
   print floor(.5+t*255/100.)+0x80
   adc5g.set_spi_offset(roach2,0, 4, t)
 def get_offs():
   for i in range(1,5):
-    print "%.3f " % -adc5g.get_spi_offset(roach2,0,i),
+    print "%.3f " % adc5g.get_spi_offset(roach2,0,i),
   print
 
 def set_gains(g1, g2, g3, g4):
   """
   Set the gains for each core in the order a, b, c, d.
   """
-  t = -float(g1)
+  t = float(g1)
   print floor(.5+t*255/36.)+0x80,
   adc5g.set_spi_gain(roach2,0, 1, t)
-  t = -float(g2)
+  t = float(g2)
   print floor(.5+t*255/36.)+0x80,
   adc5g.set_spi_gain(roach2,0, 2, t)
-  t = -float(g3)
+  t = float(g3)
   print floor(.5+t*255/36.)+0x80,
   adc5g.set_spi_gain(roach2,0, 3, t)
-  t = -float(g4)
+  t = float(g4)
   print floor(.5+t*255/36.)+0x80
   adc5g.set_spi_gain(roach2,0, 4, t)
 def get_gains():
   for i in range(1,5):
-    print "%.3f " % -adc5g.get_spi_gain(roach2,0,i),
+    print "%.3f " % adc5g.get_spi_gain(roach2,0,i),
   print
 def set_phase(p1, p2, p3, p4):
   """
   Set the phases (delays) for each core in the order a, b, c, d.
   """
-  t = -float(p1)
+  t = float(p1)
   print floor(.5+t*255/28.)+0x80,
   adc5g.set_spi_phase(roach2,0, 1, t)
-  t = -float(p2)
+  t = float(p2)
   print floor(.5+t*255/28.)+0x80,
   adc5g.set_spi_phase(roach2,0, 2, t)
-  t = -float(p3)
+  t = float(p3)
   print floor(.5+t*255/28.)+0x80,
   adc5g.set_spi_phase(roach2,0, 3, t)
-  t = -float(p4)
+  t = float(p4)
   print floor(.5+t*255/28.)+0x80
   adc5g.set_spi_phase(roach2,0, 4, t)
 def get_phase():
   for i in range(1,5):
-    print "%.3f " % -adc5g.get_spi_phase(roach2,0,i),
+    print "%.3f " % adc5g.get_spi_phase(roach2,0,i),
   print
 def clear_inl():
   offs = [0.0]*17
@@ -270,3 +301,34 @@ def get_inl():
   for chan in range(1,5):
     print "core %d" % (chan)
     print adc5g.get_inl_registers(roach2, 0, chan)
+
+def set_inl(fname = 'inl'):
+  """
+  Set the INL registers for all four cores from a file containing 17 rows
+  of 5 columns.  The first column contains the level and is ignored.
+  Columns 2-5 contain the inl correction for cores a-d
+  """
+  c = genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
+  adc5g.set_inl_registers(roach2,0,1,c[0])
+  adc5g.set_inl_registers(roach2,0,2,c[1])
+  adc5g.set_inl_registers(roach2,0,3,c[2])
+  adc5g.set_inl_registers(roach2,0,4,c[3])
+
+#def get_inl_array():
+#  inl = zeros((5,17), dtype='float')
+#  for chan in range(1,5):
+#    inl[chan] = adc5g.get_inl_registers(roach2, 0, chan)
+#  inl[0] = range(0, 257,16)
+#  return inl.transpose()
+#
+#def get_fit_array():
+#  fit = zeros((12), dtype='float')
+#  indx = 0
+#  for chan in range(1,5):
+#    fit[indx] = adc5g.get_spi_offset(roach2,0,chan)
+#    indx += 1
+#    fit[indx] = adc5g.get_spi_gain(roach2,0,chan)
+#    indx += 1
+#    fit[indx] = adc5g.get_spi_phase(roach2,0,chan)
+#    indx += 1
+#  return fit

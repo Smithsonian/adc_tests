@@ -5,10 +5,11 @@ import sys
 import os
 import math
 #from scipy import *
-from numpy import array, zeros, savetxt
+import adc5g
+from numpy import array, zeros, savetxt, genfromtxt, shape
 from scipy.optimize import leastsq
 
-avg_result = zeros((14), dtype=float)
+sum_result = zeros((15), dtype=float)
 result_cnt = 0
 code_errors = zeros((256,4), dtype='float')
 ce_counts = zeros((256, 4), dtype='int32')
@@ -27,10 +28,11 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   and phase of the four fits report the average and the difference of each
   core from the average.  Write a line in fname.fit giving these values.
   Compute the average difference between the fitted value and emasured value
-  for each level of each core averaged of=ver the samples.
+  for each level of each core averaged over the samples.
   """
-  global avg_result, result_cnt, code_errors, ce_counts
-  p0 = [7.5, 5.0, 5.0]
+  global sum_result, result_cnt, code_errors, ce_counts
+  p0 = [128.0, 90.0, 90.0]
+  t = ()
   
   # Create lists to hold parameters at sample rate
   adc = []	# adc value
@@ -72,14 +74,32 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   c4 = c[3:: 4]
   
   ifd.close()
+
+
 # express offsets as mV.  1 lsb = 500mV/256. z_fact conf=verts from lsb to mV
   z_fact = 500.0/256.0
+  true_zero = 127 * z_fact
 #  z_fact = 1.0
 # Express delay in ps.  d_fact converts from angle at sig_freq(MHz) to ps
   d_fact = 1e12/(2*math.pi*sig_freq*1e6)
 # This d_fact converts dly from angle at sig_freq to fraction of sample period.
 #  d_fact = samp_freq/(2*math.pi*sig_freq)
 #  d_fact = 1
+
+  args0 = (array(s), array(c), array(adc))
+  plsq0 = leastsq(residuals, p0, args0)
+  #if plsq1[1] != 1:
+  #  print "Fit failed to converge"
+  z0 = z_fact * plsq0[0][0]
+  s0a = plsq0[0][1]
+  c0a = plsq0[0][2]
+  amp0 = math.sqrt(s0a**2 + c0a**2)
+  dly0 = d_fact*math.atan2(s0a, c0a)
+  Fit0 = fitval(plsq0[0], args0[0], args0[1])
+  ssq0 = 0.0
+  for i in range(data_cnt):
+    ssq0 += (adc[i] - Fit0[i])**2
+  pwr_sinad = (amp0**2)/(2*ssq0/data_cnt)
 
   args1 = (array(s1), array(c1), array(core1))
   plsq1 = leastsq(residuals, p0, args1)
@@ -117,40 +137,45 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   
   avz = (z1+z2+z3+z4)/4.0
   avamp = (amp1+amp2+amp3+amp4)/4.0
-  a1p = 100*(amp1 - avamp)/avamp
-  a2p = 100*(amp2 - avamp)/avamp
-  a3p = 100*(amp3 - avamp)/avamp
-  a4p = 100*(amp4 - avamp)/avamp
+  # Reverse the amplitude and zero differences so they can be applied to the
+  # offset and gain registers directly.  The phase registers don't need the
+  # reversal
+  a1p = 100*(avamp -amp1)/avamp
+  a2p = 100*(avamp -amp2)/avamp
+  a3p = 100*(avamp -amp3)/avamp
+  a4p = 100*(avamp -amp4)/avamp
   avdly = (dly1+dly2+dly3+dly4)/4.0
   if prnt:
     print "#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq)
     print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
-    print "core A  %7.4f %7.4f %8.4f" %  (z1-avz, a1p, dly1-avdly)
-    print "core B  %7.4f %7.4f %8.4f" %  (z3-avz, a3p, dly3-avdly)
-    print "core C  %7.4f %7.4f %8.4f" %  (z2-avz, a2p, dly2-avdly)
-    print "core D  %7.4f %7.4f %8.4f" %  (z4-avz, a4p, dly4-avdly)
-    print
+    print "core A  %7.4f %7.4f %8.4f" %  (true_zero-z1, a1p, dly1-avdly)
+    print "core B  %7.4f %7.4f %8.4f" %  (true_zero-z2, a3p, dly3-avdly)
+    print "core C  %7.4f %7.4f %8.4f" %  (true_zero-z2, a2p, dly2-avdly)
+    print "core D  %7.4f %7.4f %8.4f" %  (true_zero-z4, a4p, dly4-avdly)
+    print "\nsinad = %.2f" % (10.0*math.log10(pwr_sinad))
 
   if clear_avgs:
-    avg_result = zeros((15), dtype=float)
+    sum_result = zeros((15), dtype=float)
     result_cnt = 0
     code_errors = zeros((256,4), dtype='float')
     ce_counts = zeros((256, 4), dtype='int32')
 
-  result = (sig_freq, avz, avamp, \
-      z1-avz, a1p, dly1-avdly, z3-avz, a3p, dly3-avdly, \
-      z2-avz, a2p, dly2-avdly, z4-avz, a4p, dly4-avdly)
+  result = (sig_freq, avz, avamp,\
+      true_zero-z1, a1p, dly1-avdly, true_zero-z3, a3p, dly3-avdly, \
+      true_zero-z2, a2p, dly2-avdly, true_zero-z4, a4p, dly4-avdly)
   result_fmt = "%8.4f "*15
 #  if prnt:
 #    print >>ffd, result_fmt % result
-  avg_result += array(result)
+  sum_result += array(result)
   result_cnt += 1
 #  print result_fmt % avg_resul
 #  aresult = array(result)
   if prnt and result_cnt > 1:
-    t = tuple(avg_result/result_cnt)
+    avg_result = sum_result/result_cnt
+    avg_result[0] = sig_freq
+    t = tuple(avg_result)
     print >>ffd, result_cnt,
-    print >>ffd,  result_fmt % t
+    print >>ffd,  result_fmt % tuple(t)
     print "average of %d measurements" % (result_cnt)
     print "#avg    %7.4f %7.4f %8.4f" %  (t[1], t[2], 0)
     print "core A  %7.4f %7.4f %8.4f" %  t[3:6]
@@ -197,3 +222,131 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
         e = code_errors[code]/ce_counts[code]
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
 	    (code, e[0], e[1], e[2], e[3])
+  return t, pwr_sinad
+
+def fit_inl(df_name='t.res', inl_name='inl.tmp', add_corrections=False):
+  
+  corrections = zeros((17,5), dtype='float')
+  wts = array([1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15,16,\
+        15.,14.,13.,12.,11.,10.,9.,8.,7.,6.,5.,4.,3.,2.,1.])
+
+  data = genfromtxt(df_name, unpack=True)
+  start_data = int(data[0][0])
+  file_limit = len(data[0])
+  data_limit = start_data + file_limit
+  print start_data, data_limit
+  if data[0][data_limit - start_data - 1] != data_limit - 1:
+    print "there are holes in the data file"
+    return
+  for corr_level in range(17):
+    # a and b are positions in the file
+    a = corr_level*16 - 15 - start_data
+    b = a + 31
+    if a < 0:
+      a = 0
+    if b > file_limit:
+      b = file_limit
+    if a > b:
+      continue
+    wt_a = a - corr_level*16 + 15 + start_data
+    wt_b = wt_a -a + b
+    wt = sum(wts[wt_a:wt_b])
+    av1 = sum(data[1][a:b]*wts[wt_a:wt_b])/wt
+    av2 = sum(data[2][a:b]*wts[wt_a:wt_b])/wt
+    av3 = sum(data[3][a:b]*wts[wt_a:wt_b])/wt
+    av4 = sum(data[4][a:b]*wts[wt_a:wt_b])/wt
+    print "%d %7.5f %7.5f %7.5f %7.5f" %  (16*corr_level,av1,av2,av3,av4)
+    corrections[corr_level][0] = 16*corr_level
+    corrections[corr_level][1] = av1
+    corrections[corr_level][2] = av3
+    corrections[corr_level][3] = av2
+    corrections[corr_level][4] = av4
+  if add_corrections:
+    c = genfromtxt(inl_name)
+    for corr_level in range(17):
+      c[corr_level][0] = 0
+    corrections += c
+  savetxt(inl_name, corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
+# print corr_level,a, data[0][a],b,data[0][b-1],wt_a, wt_b, wt,av1
+#  return corrections
+
+
+def dosfdr(sig_freq, fname = 'psd'):
+  
+  tot_pwr = 0.0
+  in_peak = False
+  spur_pwr = 0.0
+  for line in open(fname, 'r'):
+    f, d = line.split()
+    freq = float(f)
+    if abs(freq - sig_freq) < 4:
+      test = -70
+    else:
+      test = -90
+    db = float(d)
+    pwr = 10**(float(db)/10.)
+    tot_pwr += pwr
+    if in_peak:
+      if db < test:
+        in_peak = False
+        if abs(peak_freq - sig_freq) < 1:
+          sig_pwr = pwr_in_peak
+	  sig_db = peak_db
+	  peak_sig_freq = peak_freq
+        else:
+  	  if pwr_in_peak > spur_pwr:
+  	    spur_pwr = pwr_in_peak
+            spur_db = peak_db
+  	    spur_freq = peak_freq
+      else:
+        pwr_in_peak += 10**(float(db)/10.)
+        if db > peak_db:
+          peak_db = db
+  	peak_freq = freq
+    elif db > test:
+      pwr_in_peak = 10**(float(db)/10.)
+      peak_freq = freq
+      peak_db = db
+      in_peak = True
+  outfd = open('sfdr', 'a')
+  sfdr = 10.0*math.log10(sig_pwr / spur_pwr)
+  sinad = 10.0*math.log10(sig_pwr/(tot_pwr - sig_pwr))
+  print >> outfd, "%8.3f %6.2f %6.2f %6.2f %7.2f" %\
+      (sig_freq, sig_db, sfdr, sinad, spur_freq)
+
+#def dosfdr(sig_freq, fname = 'psd'):
+#  sig_peak = -100.0
+#  spur_peak = -100.0
+#  spur_freq = 0.0
+#  outfd = open('sfdr', 'a')
+#  for line in open(fname, 'r'):
+#    freq, db = line.split()
+#    db = float(db)
+#    freq = float(freq)
+#    if abs(freq - sig_freq) < 1.5:
+#      if db > sig_peak:
+#        sig_peak = db
+#    elif db > spur_peak:
+#        spur_peak = db
+#	spur_freq = freq
+#  print >> outfd, "%8.3f %6.2f %6.2f %7.2f" %\
+#      (sig_freq, sig_peak, sig_peak - spur_peak, spur_freq)
+
+def get_inl_array(roach, zdok_n):
+  inl = zeros((5,17), dtype='float')
+  for chan in range(1,5):
+    inl[chan] = adc5g.get_inl_registers(roach, zdok_n, chan)
+  inl[0] = range(0, 257,16)
+  return inl.transpose()
+
+def get_fit_array(roach, zdok_n):
+  fit = zeros((12), dtype='float')
+  indx = 0
+  for chan in range(1,5):
+    fit[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
+    indx += 1
+    fit[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
+    indx += 1
+    fit[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
+    indx += 1
+  return fit
