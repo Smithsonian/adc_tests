@@ -21,18 +21,19 @@ def fitval(p, s, c):
 def residuals(p, s, c, adc):
   return adc - fitval(p, s, c)
 
-def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
+def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   """
   Given a file containing a snapshot of data, separate the data from the
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
   and phase of the four fits report the average and the difference of each
   core from the average.  Write a line in fname.fit giving these values.
   Compute the average difference between the fitted value and measured value
-  for each level of each core averaged over the samples.
+  for each level of each core averaged over the samples (the raw data for
+  INL corrections) and write to fname.res.
   """
   global sum_result, result_cnt, code_errors, ce_counts
   p0 = [128.0, 90.0, 90.0]
-  t = ()
+  ogp = ()
   
   # Create lists to hold parameters at sample rate
   adc = []	# adc value
@@ -41,16 +42,16 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   
   del_phi = 2 * math.pi * sig_freq / samp_freq
   ifd=open(df_name, 'r')
-  ffd = open(df_name + ".fit", 'a')
+  ofd = open(df_name + ".ogp", 'a')
   if prnt:
     outfile = df_name + ".c1"
-    ffd1 = open(outfile, 'w')
+    cfd1 = open(outfile, 'w')
     outfile = df_name + ".c2"
-    ffd2 = open(outfile, 'w')
+    cfd2 = open(outfile, 'w')
     outfile = df_name + ".c3"
-    ffd3 = open(outfile, 'w')
+    cfd3 = open(outfile, 'w')
     outfile = df_name + ".c4"
-    ffd4 = open(outfile, 'w')
+    cfd4 = open(outfile, 'w')
   data_cnt = 0
   for line in ifd:
     if line[0] == "#":
@@ -165,7 +166,7 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
       true_zero-z2, a2p, dly2-avdly, true_zero-z4, a4p, dly4-avdly)
   result_fmt = "%8.4f "*15
 #  if prnt:
-#    print >>ffd, result_fmt % result
+#    print >>ofd, result_fmt % result
   sum_result += array(result)
   result_cnt += 1
 #  print result_fmt % avg_resul
@@ -173,15 +174,15 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   if prnt and result_cnt > 1:
     avg_result = sum_result/result_cnt
     avg_result[0] = sig_freq
-    t = tuple(avg_result)
-    print >>ffd, result_cnt,
-    print >>ffd,  result_fmt % tuple(t)
+    ogp = tuple(avg_result)
+    print >>ofd, result_cnt,
+    print >>ofd,  result_fmt % ogp
     print "average of %d measurements" % (result_cnt)
-    print "#avg    %7.4f %7.4f %8.4f" %  (t[1], t[2], 0)
-    print "core A  %7.4f %7.4f %8.4f" %  t[3:6]
-    print "core B  %7.4f %7.4f %8.4f" %  t[6:9]
-    print "core C  %7.4f %7.4f %8.4f" %  t[9:12]
-    print "core D  %7.4f %7.4f %8.4f" %  t[12:15]
+    print "#avg    %7.4f %7.4f %8.4f" %  (ogp[1], ogp[2], 0)
+    print "core A  %7.4f %7.4f %8.4f" %  ogp[3:6]
+    print "core B  %7.4f %7.4f %8.4f" %  ogp[6:9]
+    print "core C  %7.4f %7.4f %8.4f" %  ogp[9:12]
+    print "core D  %7.4f %7.4f %8.4f" %  ogp[12:15]
     print
 
   # for each core (n), accumulate the sum of the residuals at each output code
@@ -191,28 +192,28 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   for i in range(data_cnt/4):
     code = core1[i]
     if prnt:
-      print >>ffd1, "%d %d %.2f" % (4 * i, code, Fit1[i])
+      print >>cfd1, "%d %d %.2f" % (4 * i, code, Fit1[i])
     code_errors[code][0] += code - Fit1[i]
     ce_counts[code][0] += 1
   Fit2 = fitval(plsq2[0], args2[0], args2[1])
   for i in range(data_cnt/4):
     code = core2[i]
     if prnt:
-      print >>ffd3, "%d %d %.2f" % (4 * i + 1, code, Fit2[i])
+      print >>cfd3, "%d %d %.2f" % (4 * i + 1, code, Fit2[i])
     code_errors[code][1] += code - Fit2[i]
     ce_counts[code][1] += 1
   Fit3 = fitval(plsq3[0], args3[0], args3[1])
   for i in range(data_cnt/4):
     code = core3[i]
     if prnt:
-      print >>ffd2, "%d %d %.2f" % (4 * i + 2, code, Fit3[i])
+      print >>cfd2, "%d %d %.2f" % (4 * i + 2, code, Fit3[i])
     code_errors[code][2] += code - Fit3[i]
     ce_counts[code][2] += 1
   Fit4 = fitval(plsq4[0], args4[0], args4[1])
   for i in range(data_cnt/4):
     code = core4[i]
     if prnt:
-      print >>ffd4, "%d %d %.2f" % (4 * i + 3, code, Fit4[i])
+      print >>cfd4, "%d %d %.2f" % (4 * i + 3, code, Fit4[i])
     code_errors[code][3] += code - Fit4[i]
     ce_counts[code][3] += 1
   if prnt:
@@ -222,9 +223,12 @@ def fitc(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
         e = code_errors[code]/ce_counts[code]
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
 	    (code, e[0], e[1], e[2], e[3])
-  return t, pwr_sinad
+  return ogp, pwr_sinad
 
 def fit_inl(df_name='t.res', inl_name='inl.tmp', add_corrections=False):
+  """
+  Read the raw residuals from fname.res and compute the INL corrections
+  """
   
   corrections = zeros((17,5), dtype='float')
   wts = array([1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15,16,\
@@ -272,6 +276,10 @@ def fit_inl(df_name='t.res', inl_name='inl.tmp', add_corrections=False):
 
 
 def dosfdr(sig_freq, fname = 'psd'):
+  """
+  Read the psd data from a file and calculate the SFDR and SINAD.  Write the
+  results in a file named sfdr
+  """
   
   tot_pwr = 0.0
   in_peak = False
@@ -333,6 +341,9 @@ def dosfdr(sig_freq, fname = 'psd'):
 #      (sig_freq, sig_peak, sig_peak - spur_peak, spur_freq)
 
 def get_inl_array(roach, zdok_n):
+  """
+  Read the INL corrections from the adc and put in an array
+  """
   inl = zeros((5,17), dtype='float')
   for chan in range(1,5):
     inl[chan] = adc5g.get_inl_registers(roach, zdok_n, chan)
@@ -340,6 +351,10 @@ def get_inl_array(roach, zdok_n):
   return inl.transpose()
 
 def get_ogp_array(roach, zdok_n):
+  """
+  Read  the Offset, Gain and Phase corrections for each core from the ADC
+  and return in a 1D array
+  """
   ogp = zeros((12), dtype='float')
   indx = 0
   for chan in range(1,5):
