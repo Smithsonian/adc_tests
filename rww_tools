@@ -45,10 +45,10 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, "snap_a")
     savetxt(name, snap,fmt='%d')
-    t, pwr_sinad = fit_cores.fitc(fr, samp_freq, name,\
+    ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
        clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
     avg_pwr_sinad += pwr_sinad
-  return t, avg_pwr_sinad/rpt
+  return ogp, avg_pwr_sinad/rpt
 
 def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
   """
@@ -60,7 +60,7 @@ def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
   for i in range(rpt):
     snap=get_sim_data(freq, exact)
     savetxt(name, snap,fmt='%d')
-    fit_cores.fitc(freq, samp_freq, name, i == 0)
+    fit_cores.fit_snap(freq, samp_freq, name, i == 0)
 
 def simpsd(freq=318.0, rpt = 1, exact=True):
   """
@@ -141,7 +141,7 @@ def dopsd(nfft = numpoints, rpt = 10):
 #    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 
 def multifreq(start=100, end=2400, step=300, repeat=10, save_fit = False,\
-    add_to_fit=False, fname = 'fit', do_sfdr=False):
+    add_to_fit=False, fname = 'ogp', do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an even number of cycles in the 16384 point snapshot.
@@ -191,12 +191,19 @@ def calibrate():
   print t
 
 def clear_ogp():
+  """
+  Clear all of the Offset, Gain and Phase corrections registers on the adc.
+  """
   for core in range(1,5):
     adc5g.set_spi_gain(roach2,zdok, core, 0)
     adc5g.set_spi_offset(roach2,zdok, core, 0)
     adc5g.set_spi_phase(roach2,zdok, core, 0)
 
 def get_ogp():
+  """
+  Use fit_cores.get_ogp_array to get the Offset, Gain and Phase corrections
+  and print them.
+  """
   ogp = fit_cores.get_ogp_array(roach2, zdok)
   print "zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)"
   print "core A  %7.4f %7.4f %8.4f" %  (ogp[0], ogp[1], ogp[2])
@@ -204,7 +211,7 @@ def get_ogp():
   print "core C  %7.4f %7.4f %8.4f" %  (ogp[6], ogp[7], ogp[8])
   print "core D  %7.4f %7.4f %8.4f" %  (ogp[9], ogp[10], ogp[11])
 
-def set_ogp(fname = 'fit'):
+def set_ogp(fname = 'ogp'):
   """
   Clear the control register and then load the offset, gain and phase
   registers for each core.  These values are hard coded for now.
@@ -214,6 +221,28 @@ def set_ogp(fname = 'fit'):
   set_offs(t[0], t[3], t[6], t[9])
   set_gains(t[1], t[4], t[7], t[10])
   set_phase(-t[2], -t[5], -t[8], -t[11])
+
+def clear_inl():
+  offs = [0.0]*17
+  for chan in range(1,5):
+    adc5g.set_inl_registers(roach2, zdok, chan, offs)
+
+def get_inl():
+  for chan in range(1,5):
+    print "core %d" % (chan)
+    print adc5g.get_inl_registers(roach2, zdok, chan)
+
+def set_inl(fname = 'inl'):
+  """
+  Set the INL registers for all four cores from a file containing 17 rows
+  of 5 columns.  The first column contains the level and is ignored.
+  Columns 2-5 contain the inl correction for cores a-d
+  """
+  c = genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
+  adc5g.set_inl_registers(roach2,zdok,1,c[0])
+  adc5g.set_inl_registers(roach2,zdok,2,c[1])
+  adc5g.set_inl_registers(roach2,zdok,3,c[2])
+  adc5g.set_inl_registers(roach2,zdok,4,c[3])
 
 def set_freq(fr, centered = False):
   """
@@ -305,25 +334,3 @@ def get_phase():
   for i in range(1,5):
     print "%.3f " % adc5g.get_spi_phase(roach2,zdok,i),
   print
-
-def clear_inl():
-  offs = [0.0]*17
-  for chan in range(1,5):
-    adc5g.set_inl_registers(roach2, zdok, chan, offs)
-
-def get_inl():
-  for chan in range(1,5):
-    print "core %d" % (chan)
-    print adc5g.get_inl_registers(roach2, zdok, chan)
-
-def set_inl(fname = 'inl'):
-  """
-  Set the INL registers for all four cores from a file containing 17 rows
-  of 5 columns.  The first column contains the level and is ignored.
-  Columns 2-5 contain the inl correction for cores a-d
-  """
-  c = genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
-  adc5g.set_inl_registers(roach2,zdok,1,c[0])
-  adc5g.set_inl_registers(roach2,zdok,2,c[1])
-  adc5g.set_inl_registers(roach2,zdok,3,c[2])
-  adc5g.set_inl_registers(roach2,zdok,4,c[3])
