@@ -1,7 +1,9 @@
 # run ipython rww_tools -pylab -i
 import sys
 import os
-from corr import katcp_wrapper
+import time
+#from corr import katcp_wrapper
+import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
 import adc5g
@@ -140,8 +142,7 @@ def dopsd(nfft = numpoints, rpt = 10):
 #  for i in range(len(sp)):
 #    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 
-def multifreq(start=100, end=2400, step=300, repeat=10, save_fit = False,\
-    add_to_fit=False, fname = 'ogp', do_sfdr=False):
+def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an even number of cycles in the 16384 point snapshot.
@@ -154,18 +155,14 @@ def multifreq(start=100, end=2400, step=300, repeat=10, save_fit = False,\
   for n in range(nstart, nend, nstep):
     freq = f*n
     set_freq(freq)
-    t, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
+    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
     sinad = 10.0*math.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
       dopsd()
       fit_cores.dosfdr(freq)
-  if add_to_fit:
-    old_fit = genfromtxt(fname)
-    old_fit += t[3:]
-    savetxt(fname, old_fit, fmt="%8.4f")
-  elif save_fit:
-    savetxt(fname, t[3:], fmt="%8.4f")
+  savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
+  fit_cores.fit_inl()
 
 def multipwr(start = 1, end = -40, step = -3, repeat=10):
   """
@@ -174,6 +171,18 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
   for n in range(start, end, step):
     set_pwr(n)
     dosnap(rpt=repeat)
+
+def update_ogp(fname = 'ogp'):
+  cur_ogp = get_ogp_array()
+  meas_ogp = genfromtxt("ogp.meas")
+  savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
+
+def update_inl(fname = 'inl.meas'):
+  cur_inl = get_inl_array()
+  meas_inl = genfromtxt(fname)
+  for level in range(17):
+    cur_inl[level][1:] += meas_inl[level][1:]
+  savetxt("inl", cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
 
 def program():
   """
@@ -201,10 +210,10 @@ def clear_ogp():
 
 def get_ogp():
   """
-  Use fit_cores.get_ogp_array to get the Offset, Gain and Phase corrections
+  Use get_ogp_array to get the Offset, Gain and Phase corrections
   and print them.
   """
-  ogp = fit_cores.get_ogp_array(roach2, zdok)
+  ogp = get_ogp_array()
   print "zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)"
   print "core A  %7.4f %7.4f %8.4f" %  (ogp[0], ogp[1], ogp[2])
   print "core B  %7.4f %7.4f %8.4f" %  (ogp[3], ogp[4], ogp[5])
@@ -220,7 +229,7 @@ def set_ogp(fname = 'ogp'):
   t = genfromtxt(fname)
   set_offs(t[0], t[3], t[6], t[9])
   set_gains(t[1], t[4], t[7], t[10])
-  set_phase(-t[2], -t[5], -t[8], -t[11])
+  set_phase(t[2], t[5], t[8], t[11])
 
 def clear_inl():
   offs = [0.0]*17
@@ -228,9 +237,11 @@ def clear_inl():
     adc5g.set_inl_registers(roach2, zdok, chan, offs)
 
 def get_inl():
-  for chan in range(1,5):
-    print "core %d" % (chan)
-    print adc5g.get_inl_registers(roach2, zdok, chan)
+  a = get_inl_array()
+  print "lvl  A     B     C     D"
+  for level in range(17):
+    print "%3d %5.2f %5.2f %5.2f %5.2f" % tuple(a[level])
+    
 
 def set_inl(fname = 'inl'):
   """
@@ -244,7 +255,7 @@ def set_inl(fname = 'inl'):
   adc5g.set_inl_registers(roach2,zdok,3,c[2])
   adc5g.set_inl_registers(roach2,zdok,4,c[3])
 
-def set_freq(fr, centered = False):
+def set_freq(fr, centered = True, prnt=True):
   """
   Set the synthesizer frequency and save the value for use by dosnap(), etc.
   If centered is True, pick the closest frequency in the center of a channel
@@ -258,6 +269,9 @@ def set_freq(fr, centered = False):
   else:
     freq=fr
   os.system(lanio + "\":FREQ " + str(freq) + " MHz\"")
+  if prnt:
+    print "%.6f" % (freq)
+  time.sleep(0.5)
   
 def get_freq():
   print os.system(lanio + "\"FREQ?\"")
@@ -334,3 +348,29 @@ def get_phase():
   for i in range(1,5):
     print "%.3f " % adc5g.get_spi_phase(roach2,zdok,i),
   print
+
+def get_inl_array():
+  """
+  Read the INL corrections from the adc and put in an array
+  """
+  inl = zeros((5,17), dtype='float')
+  for chan in range(1,5):
+    inl[chan] = adc5g.get_inl_registers(roach2, zdok, chan)
+  inl[0] = range(0, 257,16)
+  return inl.transpose()
+
+def get_ogp_array():
+  """
+  Read  the Offset, Gain and Phase corrections for each core from the ADC
+  and return in a 1D array
+  """
+  ogp = zeros((12), dtype='float')
+  indx = 0
+  for chan in range(1,5):
+    ogp[indx] = adc5g.get_spi_offset(roach2,zdok,chan)
+    indx += 1
+    ogp[indx] = adc5g.get_spi_gain(roach2,zdok,chan)
+    indx += 1
+    ogp[indx] = adc5g.get_spi_phase(roach2,zdok,chan)
+    indx += 1
+  return ogp

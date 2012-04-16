@@ -165,12 +165,8 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
       true_zero-z1, a1p, dly1-avdly, true_zero-z3, a3p, dly3-avdly, \
       true_zero-z2, a2p, dly2-avdly, true_zero-z4, a4p, dly4-avdly)
   result_fmt = "%8.4f "*15
-#  if prnt:
-#    print >>ofd, result_fmt % result
   sum_result += array(result)
   result_cnt += 1
-#  print result_fmt % avg_resul
-#  aresult = array(result)
   if prnt and result_cnt > 1:
     avg_result = sum_result/result_cnt
     avg_result[0] = sig_freq
@@ -225,7 +221,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
 	    (code, e[0], e[1], e[2], e[3])
   return ogp, pwr_sinad
 
-def fit_inl(df_name='t.res', inl_name='inl.tmp', add_corrections=False):
+def fit_inl(df_name='t.res'):
   """
   Read the raw residuals from fname.res and compute the INL corrections
   """
@@ -265,14 +261,7 @@ def fit_inl(df_name='t.res', inl_name='inl.tmp', add_corrections=False):
     corrections[corr_level][2] = av3
     corrections[corr_level][3] = av2
     corrections[corr_level][4] = av4
-  if add_corrections:
-    c = genfromtxt(inl_name)
-    for corr_level in range(17):
-      c[corr_level][0] = 0
-    corrections += c
-  savetxt(inl_name, corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
-# print corr_level,a, data[0][a],b,data[0][b-1],wt_a, wt_b, wt,av1
-#  return corrections
+  savetxt("inl.meas", corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
 
 
 def dosfdr(sig_freq, fname = 'psd'):
@@ -339,29 +328,29 @@ def dosfdr(sig_freq, fname = 'psd'):
 #	spur_freq = freq
 #  print >> outfd, "%8.3f %6.2f %6.2f %7.2f" %\
 #      (sig_freq, sig_peak, sig_peak - spur_peak, spur_freq)
-
-def get_inl_array(roach, zdok_n):
-  """
-  Read the INL corrections from the adc and put in an array
-  """
-  inl = zeros((5,17), dtype='float')
-  for chan in range(1,5):
-    inl[chan] = adc5g.get_inl_registers(roach, zdok_n, chan)
-  inl[0] = range(0, 257,16)
-  return inl.transpose()
-
-def get_ogp_array(roach, zdok_n):
-  """
-  Read  the Offset, Gain and Phase corrections for each core from the ADC
-  and return in a 1D array
-  """
-  ogp = zeros((12), dtype='float')
-  indx = 0
-  for chan in range(1,5):
-    ogp[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
-    indx += 1
-    ogp[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
-    indx += 1
-    ogp[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
-    indx += 1
-  return ogp
+#
+#def get_inl_array(roach, zdok_n):
+#  """
+#  Read the INL corrections from the adc and put in an array
+#  """
+#  inl = zeros((5,17), dtype='float')
+#  for chan in range(1,5):
+#    inl[chan] = adc5g.get_inl_registers(roach, zdok_n, chan)
+#  inl[0] = range(0, 257,16)
+#  return inl.transpose()
+#
+#def get_ogp_array(roach, zdok_n):
+#  """
+#  Read  the Offset, Gain and Phase corrections for each core from the ADC
+#  and return in a 1D array
+#  """
+#  ogp = zeros((12), dtype='float')
+#  indx = 0
+#  for chan in range(1,5):
+#    ogp[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
+#    indx += 1
+#    ogp[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
+#    indx += 1
+#    ogp[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
+#    indx += 1
+#  return ogp
