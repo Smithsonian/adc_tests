@@ -173,11 +173,19 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
     dosnap(rpt=repeat)
 
 def update_ogp(fname = 'ogp'):
+  """
+  Retreive the ogp data from the ADC and add in the corrections from
+  the measured ogp (in ogp.meas).  Store in the file 'inl'
+  """
   cur_ogp = get_ogp_array()
   meas_ogp = genfromtxt("ogp.meas")
   savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
 
 def update_inl(fname = 'inl.meas'):
+  """
+  Retreive the INL data from the ADC and add in the corrections from
+  the measured inl (in inl.meas).  Store in the file 'inl'
+  """
   cur_inl = get_inl_array()
   meas_inl = genfromtxt(fname)
   for level in range(17):
@@ -232,11 +240,18 @@ def set_ogp(fname = 'ogp'):
   set_phase(t[2], t[5], t[8], t[11])
 
 def clear_inl():
+  """
+  Clear the INL registers on teh ADC
+  """
   offs = [0.0]*17
   for chan in range(1,5):
     adc5g.set_inl_registers(roach2, zdok, chan, offs)
 
 def get_inl():
+  """
+  Use get_inl_array to get the INL registers from the ADC and then
+  print them.
+  """
   a = get_inl_array()
   print "lvl  A     B     C     D"
   for level in range(17):
@@ -274,6 +289,9 @@ def set_freq(fr, centered = True, prnt=True):
   time.sleep(0.5)
   
 def get_freq():
+  """
+  Retreive the frequency from the Agilent Synthesizer and print it.
+  """
   print os.system(lanio + "\"FREQ?\"")
 
 def set_pwr(p):
@@ -285,6 +303,9 @@ def set_pwr(p):
   os.system(lanio + "\":POW " + str(p) + " dBm\"")
   
 def get_pwr():
+  """
+  Retreive the power level from the Agilent Synthesizer and print it.
+  """
   print os.system(lanio + "\"POW?\"")
 
 def set_offs(o1, o2, o3, o4):
@@ -304,6 +325,9 @@ def set_offs(o1, o2, o3, o4):
   print floor(.5+t*255/100.)+0x80
   adc5g.set_spi_offset(roach2,zdok, 4, t)
 def get_offs():
+  """
+  Get and print the offsets for the four cores of the ADC.
+  """
   for i in range(1,5):
     print "%.3f " % adc5g.get_spi_offset(roach2,zdok,i),
   print
@@ -325,6 +349,9 @@ def set_gains(g1, g2, g3, g4):
   print floor(.5+t*255/36.)+0x80
   adc5g.set_spi_gain(roach2,zdok, 4, t)
 def get_gains():
+  """
+  Get and print the gains for the four cores of the ADC.
+  """
   for i in range(1,5):
     print "%.3f " % adc5g.get_spi_gain(roach2,zdok,i),
   print
@@ -345,6 +372,9 @@ def set_phase(p1, p2, p3, p4):
   print floor(.5+t*255/28.)+0x80
   adc5g.set_spi_phase(roach2,zdok, 4, t)
 def get_phase():
+  """
+  Get and print the delays for the four cores of the ADC.
+  """
   for i in range(1,5):
     print "%.3f " % adc5g.get_spi_phase(roach2,zdok,i),
   print
