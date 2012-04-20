@@ -159,7 +159,7 @@ def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
     sinad = 10.0*math.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
-      dopsd()
+      dopsd(rpt=3)
       fit_cores.dosfdr(freq)
   savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
   fit_cores.fit_inl()
@@ -404,3 +404,36 @@ def get_ogp_array():
     ogp[indx] = adc5g.get_spi_phase(roach2,zdok,chan)
     indx += 1
   return ogp
+
+def og_from_noise(fn="ogp.noise", rpt=10):
+  """
+  Take a number of snapshots of noise.  Analyze for offset and gain
+  for each core separately.
+  """
+  sum_result = zeros((15), dtype=float)
+  sum_cnt = 0
+  for n in range(rpt):
+    result = zeros((15), dtype=float)
+    snap=adc5g.get_snapshot(roach2, "snap_a")
+    l=float(len(snap))
+    snap_off=sum(snap)/l
+    snap_amp=sum(abs(snap-snap_off))/l
+    result[0]=snap_off
+    result[1]=snap_amp
+#    print "%.2f %.3f " % (snap_off, snap_amp),
+    for core in range(4):
+      index=3*(core+1)
+      c=snap[core::4]
+      l=float(len(c))
+      off=sum(c)/l
+      result[index] = (snap_off-off)*500.0/256.0
+      amp=sum(abs(c-off))/l
+      result[index+1]= 100.0*(snap_amp-amp)/snap_amp
+#      print "%.2f %.3f " % (off, amp),
+#      print "%.2f %.3f" % ((snap_off-off)*500.0/256.0, 100.0*(snap_amp-amp)/snap_amp),
+#    print
+    sum_result += result
+    sum_cnt += 1
+  sum_result /= sum_cnt
+  print "%.4f "*15 % tuple(sum_result)
+  savetxt(fn, sum_result[3:], fmt="%8.4f")
