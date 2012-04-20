@@ -150,7 +150,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     print "#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq)
     print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
     print "core A  %7.4f %7.4f %8.4f" %  (true_zero-z1, a1p, dly1-avdly)
-    print "core B  %7.4f %7.4f %8.4f" %  (true_zero-z2, a3p, dly3-avdly)
+    print "core B  %7.4f %7.4f %8.4f" %  (true_zero-z3, a3p, dly3-avdly)
     print "core C  %7.4f %7.4f %8.4f" %  (true_zero-z2, a2p, dly2-avdly)
     print "core D  %7.4f %7.4f %8.4f" %  (true_zero-z4, a4p, dly4-avdly)
     print "\nsinad = %.2f" % (10.0*math.log10(pwr_sinad))
