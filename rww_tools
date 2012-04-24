@@ -405,7 +405,7 @@ def get_ogp_array():
     indx += 1
   return ogp
 
-def og_from_noise(fn="ogp.noise", rpt=10):
+def og_from_noise(fname="ogp.noise", rpt=100):
   """
   Take a number of snapshots of noise.  Analyze for offset and gain
   for each core separately.
@@ -420,20 +420,18 @@ def og_from_noise(fn="ogp.noise", rpt=10):
     snap_amp=sum(abs(snap-snap_off))/l
     result[0]=snap_off
     result[1]=snap_amp
-#    print "%.2f %.3f " % (snap_off, snap_amp),
     for core in range(4):
-      index=3*(core+1)
+      # This will actually sample the cores in the order A,C,B,D
+      # index will fix this up when data is put in the result array
+      index=(3,9,6,12)[core]
       c=snap[core::4]
       l=float(len(c))
       off=sum(c)/l
       result[index] = (snap_off-off)*500.0/256.0
       amp=sum(abs(c-off))/l
       result[index+1]= 100.0*(snap_amp-amp)/snap_amp
-#      print "%.2f %.3f " % (off, amp),
-#      print "%.2f %.3f" % ((snap_off-off)*500.0/256.0, 100.0*(snap_amp-amp)/snap_amp),
-#    print
     sum_result += result
     sum_cnt += 1
   sum_result /= sum_cnt
   print "%.4f "*15 % tuple(sum_result)
-  savetxt(fn, sum_result[3:], fmt="%8.4f")
+  savetxt(fname, sum_result[3:], fmt="%8.4f")
