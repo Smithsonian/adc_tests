@@ -18,7 +18,11 @@ import corr
 roach = corr.katcp_wrapper.FpgaClient(host, port)
 roach.is_connected() # should return True
 roach.progdev(bitcode)
+roach.est_brd_clk()
 ```
+The last line should return the approximate clock rate of the FPGA 
+fabric; this should be close to `adc_clk/8` where `adc_clk` is the 
+frequency of the sine wave you provide the ADC.
 
 Calibrating data-to-clk
 -----------------------
