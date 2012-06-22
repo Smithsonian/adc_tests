@@ -6,9 +6,9 @@ on ROACH1 and ROACH2.
 
 Requirements
 ------------
-Python >= 2.6
-numpy >= 1.6.1 (only for the 'array' object)
-corr >= 0.6.9 (only for katcp_wrapper.FpgaClient)
+* Python >= 2.6
+* numpy >= 1.6.1 (only for the 'array' object)
+* corr >= 0.6.9 (only for katcp_wrapper.FpgaClient)
 
 Getting Started
 ---------------
