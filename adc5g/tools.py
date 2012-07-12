@@ -1,5 +1,8 @@
 from struct import pack, unpack
 from numpy import array
+from matplotlib.mlab import (
+    psd, detrend_mean,
+)
 from opb import (
     OPB_CONTROLLER,
     OPB_DATA_FMT,
@@ -58,7 +61,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8, man_trig=True, wa
     set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
     for ps in range(56):
-        core_a, core_c, core_b, core_d = get_test_vector(roach, zdok_n, snap_name, man_trig=man_trig, wait_period=2)
+        core_a, core_c, core_b, core_d = get_test_vector(roach, snap_name, man_trig=man_trig, wait_period=2)
         glitches = total_glitches(core_a) + total_glitches(core_c) + \
             total_glitches(core_b) + total_glitches(core_d)
         glitches_per_ps.append(glitches)
@@ -87,3 +90,14 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8, man_trig=True, wa
             inc_mmcm_phase(roach, zdok_n)
         return optimal_ps, glitches_per_ps
 
+
+def get_psd(roach, snap_name, samp_freq, bitwidth=8, nfft=256):
+    """
+    Reads data off a given channel on a ROACH and calculates
+    the power spectral density of the time-series.
+    """
+
+    data = get_snapshot(roach, snap_name, bitwidth)
+    power, freqs = psd(data, nfft, Fs=samp_freq, detrend=detrend_mean, scale_by_freq=True)
+
+    return power, freqs

@@ -11,6 +11,7 @@ EXTOFFS_REG_ADDR = 0x20 + 0x80
 EXTGAIN_REG_ADDR = 0x22 + 0x80
 EXTPHAS_REG_ADDR = 0x24 + 0x80
 CALCTRL_REG_ADDR = 0x10 + 0x80
+FIRST_EXTINL_REG_ADDR = 0x30 + 0x80
 
 
 def set_spi_register(roach, zdok_n, reg_addr, reg_val):
@@ -152,3 +153,69 @@ def get_spi_phase(roach, zdok_n, chan):
     return (reg_val - 0x80)*(28./255)
 
 
+def set_inl_registers(roach, zdok_n, chan, offs):
+    """
+    Sets the Integral NonLinearity bits of one of the four channels on
+    an ADC over SPI.
+    
+    The bits are packed into six 16-bit registers on the adc in a way
+    that must make sense to the hardware designer. This subroutine takes
+    its arguments in a way that is easier to explain
+
+    The argument offs should be a list or array of 17 floats containing
+    the fraction of an lsb to offset the adc's reference ladder at 0,
+    16, ... 240, 255.  The possible offsets are 0, +-0.15, +-0.3, +-0.45
+    and +-0.0.  The values given will be rounded to the nearest of these
+    values and converted to the bits in the hardware registerd.
+
+    See: http://www.e2v.com/e2v/assets/File/documents/broadband-data-converters/doc0846I.pdf,
+     specifically section 8.7.19 through 8.8, for more details.
+    """
+    level_to_bits = array([5,4,6,1,0,2,9,8,10])
+
+    # create a array of 6 ints to hold the values for the registers
+    regs = zeros((6), dtype='int32')
+    r = 2	# r is the relative register number.  R = 2 for 0x32 and 0x35
+    regbit = 8 #  regbit is the bit in the register
+    for level in range(17):	# n is the bit number in the incoming bits aray
+        n = int(floor(0.5 + offs[level]/0.15))
+        if n > 4:
+            n = 4
+        if n < -4:
+            n = -4
+	i = level_to_bits[4-n]
+	regs[r] |= ((i >>2) & 3) << regbit
+	regs[r + 3] |= (i & 3)<< regbit
+	if regbit == 14:
+	    r -= 1
+	    regbit = 0
+	else:
+	    regbit += 2
+
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    for n in range(6):
+	reg_val = float(regs[n])
+        set_spi_register(roach, zdok_n, FIRST_EXTINL_REG_ADDR+n, reg_val)
+    set_spi_register(roach, zdok_n, CALCTRL_REG_ADDR, 2)
+
+
+def get_inl_registers(roach, zdok_n, chan):
+    bits_to_off = array([0,1,-1,0,3,4,2,0,-3,-2,-4])
+    offs = zeros((17), dtype = float)
+    regs = zeros((6), dtype='int32')
+
+    set_spi_register(roach, zdok_n, CHANSEL_REG_ADDR, chan)
+    for n in range(6):
+        regs[n] = get_spi_register(roach, zdok_n, FIRST_EXTINL_REG_ADDR-0x80+n)
+
+    r = 2	# r is the relative register number.  R = 2 for 0x32 and 0x35
+    regbit = 8	#  regbit is the bit in the register
+    for level in range(17):	# n is the bit number in the incoming bits aray
+        bits = 0xc & ((regs[r]>>regbit)<<2) | 3 & (regs[r+3]>>regbit)
+	offs[level] = 0.15 * bits_to_off[bits]
+	if regbit == 14:
+	    regbit = 0
+	    r -= 1
+	else:
+	    regbit += 2
+    return offs
