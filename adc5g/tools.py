@@ -1,5 +1,4 @@
 from struct import pack, unpack
-from numpy import array
 from matplotlib.mlab import (
     psd, detrend_mean,
 )
@@ -23,7 +22,7 @@ def get_snapshot(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     grab = roach.snapshot_get(snap_name, man_trig=man_trig, wait_period=2)
     data = unpack('%iB' %grab['length'], grab['data'])
 
-    return array(data)
+    return data
 
 
 def get_test_vector(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
@@ -39,7 +38,7 @@ def get_test_vector(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     mode.
     """
     data = get_snapshot(roach, snap_name, bitwidth, man_trig=man_trig, wait_period=2)
-    data_bin = (data>>1) ^ data
+    data_bin = list((p>>1) ^ p for p in data)
     return data_bin[0::4], data_bin[1::4], data_bin[2::4], data_bin[3::4]
 
 
