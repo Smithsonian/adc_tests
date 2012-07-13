@@ -2,8 +2,8 @@
 import sys
 import os
 import time
-from corr import katcp_wrapper
-#import katcp_wrapper
+#from corr import katcp_wrapper
+import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
 import adc5g
@@ -18,6 +18,7 @@ freq = 10.070801
 pwr = 1.0
 numpoints=16384
 samp_freq = 5000.0
+snap_name = "scope_raw_0_snap"
 
 def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
   """
@@ -45,7 +46,7 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
   if fr == 0:
     fr = freq
   for i in range(rpt):
-    snap=adc5g.get_snapshot(roach2, "snap_a")
+    snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
     savetxt(name, snap,fmt='%d')
     ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
        clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
@@ -110,7 +111,7 @@ def dotest(plotcore = 1):
   by default.
   """
   adc5g.set_spi_control(roach2, zdok, test=1)
-  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, 'snap_a')
+  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, snap_name)
   if plotcore == 2:
     plotcore = 3
   elif plotcore == 3:
@@ -129,7 +130,7 @@ def dopsd(nfft = numpoints, rpt = 10):
   rpt  The numper of mesurements to be averaged for the plot and output file. 
   """
   for i in range(rpt):
-    power, freqs = adc5g.get_psd(roach2, 'snap_a', 5e9, 8, nfft)
+    power, freqs = adc5g.get_psd(roach2, snap_name, 5e9, 8, nfft)
     if i == 0:
       sp = power
     else:
@@ -204,7 +205,7 @@ def calibrate():
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
-  t = adc5g.calibrate_mmcm_phase(roach2, zdok, "snap_a", bitwidth=8)
+  t = adc5g.calibrate_mmcm_phase(roach2, zdok, snap_name, bitwidth=8)
   print t
 
 def clear_ogp():
@@ -414,7 +415,7 @@ def og_from_noise(fname="ogp.noise", rpt=100):
   sum_cnt = 0
   for n in range(rpt):
     result = zeros((15), dtype=float)
-    snap=adc5g.get_snapshot(roach2, "snap_a")
+    snap=adc5g.get_snapshot(roach2, snap_name)
     l=float(len(snap))
     snap_off=sum(snap)/l
     snap_amp=sum(abs(snap-snap_off))/l
