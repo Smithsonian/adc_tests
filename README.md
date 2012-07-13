@@ -14,7 +14,7 @@ Getting Started
 ---------------
 Begin with connecting to your ROACH and programming it:
 ```python
-from corr katcp_wrapper
+from corr import katcp_wrapper
 roach = katcp_wrapper.FpgaClient(host, port)
 roach.is_connected() # should return True
 roach.progdev(bitcode)
