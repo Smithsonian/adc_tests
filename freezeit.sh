@@ -29,7 +29,7 @@ fi
 # Use the freeze script to create a binary
 python2.6 "$FREEZELOC" -X _warnings -X codecs -X copy \
     -X distutils -X encodings -X locale -X macpath \
-    -X ntpath -X os2emxpath -X popen2 -X pydoc -X re \
+    -X ntpath -X os2emxpath -X popen2 -X pydoc \
     -X adc5g.mlab_tools ../test_adc5g.py
 make
 cp test_adc5g ../bin/.
