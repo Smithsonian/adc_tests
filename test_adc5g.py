@@ -46,6 +46,7 @@ def main():
     if options.remote:
         if REMOTE_POSSIBLE:
             roach = katcp_wrapper.FpgaClient(*options.remote.split(':'))
+            roach.wait_connected(1)
         else:
             raise ImportError("corr package was not found, "
                               "remote operation not possible!")
