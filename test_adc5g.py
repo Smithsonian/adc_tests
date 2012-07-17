@@ -11,18 +11,18 @@ except ImportError:
 
 class TestBasics(unittest.TestCase):
     
-    @classmethod
-    def setUpClass(cls):
-        global roach
-        cls.roach = roach
+    def setUp(self):
+        if not hasattr(self, '_roach'):
+            global roach
+            self._roach = roach
 
     def test_connected(self):
         "testing katcp connectivity"
-        self.assertTrue(self.roach.is_connected())
+        self.assertTrue(self._roach.is_connected())
 
     def test_ping(self):
         "testing katcp pingability"
-        self.assertTrue(self.roach.ping())
+        self.assertTrue(self._roach.ping())
 
     
 def run_tests(verbosity):
