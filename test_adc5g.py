@@ -1,3 +1,4 @@
+import sys
 import unittest
 from optparse import OptionParser
 
@@ -159,7 +160,7 @@ def print_tests(option, opt, value, parser):
         for name in loader.getTestCaseNames(test_case):
             test = getattr(test_case, name)
             print "%d -> %s" % (i, test.__doc__)
-    exit()
+    sys.exit()
 
 
 def run_tests(verbosity):
