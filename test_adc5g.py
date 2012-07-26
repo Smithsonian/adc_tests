@@ -43,15 +43,15 @@ class TestBase(unittest.TestCase):
 class TestSetup(TestBase):
 
     def test_connected(self):
-        "testing roach connectivity"
+        "test roach connectivity"
         self.assertTrue(self._roach.is_connected())
 
     def test_ping(self):
-        "testing roach pingability"
+        "test roach pingability"
         self.assertTrue(self._roach.ping())
 
     def test_listbof(self):
-        "checking if requested bof is available"
+        "check if requested bof is available"
         bofs = BofList(self._roach.listbof())
         self.assertIn(self._dut, bofs)
 
@@ -59,7 +59,7 @@ class TestSetup(TestBase):
 class TestProgramming(TestBase):
 
     def test_progdev(self):
-        "programming the requested bof"
+        "program the requested bof"
         ret = self._roach.progdev(self._dut)
         self.assertEqual(ret, "ok")
 
@@ -72,7 +72,7 @@ class TestBasics(TestBase):
         cls._devices = DevList(cls._roach.listdev())
 
     def test_clk_rate(self):
-        "estimated clock rate should be within 1 MHz of expected"
+        "estimate clock rate, should be within 1 MHz of expected"
         rate = self._roach.est_brd_clk()
         self.assertLess(rate, self._clk_rate/8. + 1.0)
         self.assertGreater(rate, self._clk_rate/8. - 1.0)
@@ -97,7 +97,7 @@ class TestCalibration(TestBase):
             cls._roach, cls._zdok_n, 'raw_%d' % cls._zdok_n)
 
     def test_optimal_solution_found(self):
-        "testing if calibration found optimal MMCM phase"
+        "test if calibration finds optimal MMCM phase"
         self.assertIsNotNone(self._optimal_phase)
 
 
@@ -142,15 +142,29 @@ class TestInitialSPIControl(TestBase):
         self.assertControlParameterIs('test', 0)
 
 
+ORDERED_TEST_CASES = [
+    TestSetup,
+    TestProgramming,
+    TestBasics,
+    TestCalibration,
+    TestInitialSPIControl,
+    ]
+
+
+def print_tests(option, opt, value, parser):
+    loader = unittest.TestLoader()
+    for i, test_case in enumerate(ORDERED_TEST_CASES):
+        if test_case.__doc__:
+            print test_case.__doc__
+        for name in loader.getTestCaseNames(test_case):
+            test = getattr(test_case, name)
+            print "%d -> %s" % (i, test.__doc__)
+    exit()
+
+
 def run_tests(verbosity):
     loader = unittest.TestLoader()
-    full_suite = unittest.TestSuite([
-            loader.loadTestsFromTestCase(TestSetup),
-            loader.loadTestsFromTestCase(TestProgramming),
-            loader.loadTestsFromTestCase(TestBasics),
-            loader.loadTestsFromTestCase(TestCalibration),
-            loader.loadTestsFromTestCase(TestInitialSPIControl),
-            ])
+    full_suite = unittest.TestSuite(list(loader.loadTestsFromTestCase(test) for test in ORDERED_TEST_CASES))
     runner = unittest.TextTestRunner(
         verbosity=verbosity, failfast=True, resultclass=ADC5GTestResult)
     runner.run(full_suite)
@@ -173,6 +187,8 @@ def main():
     parser.add_option("-c", "--clk-rate",
                       dest="clk_rate", metavar="CLK_MHZ", type='float', default=2500.0,
                       help="specify the input clock frequency in MHz")
+    parser.add_option("-l", "--list", action="callback", callback=print_tests,
+                      help="list info on the tests that will be run")
     (options, args) = parser.parse_args()
     if options.verbose:
         verbosity = 2
