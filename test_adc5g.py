@@ -1,5 +1,6 @@
 import sys
 import unittest
+from math import pi, sqrt, sin, atan2
 from optparse import OptionParser
 
 import adc5g
@@ -34,11 +35,13 @@ class TestBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        global roach, boffile, zdok_n, clk_rate
+        global roach, boffile, zdok_n, clk_rate, tone_freq, tone_amp
         cls._roach = roach
         cls._dut = boffile
         cls._zdok_n = zdok_n
         cls._clk_rate = clk_rate
+        cls._tone_freq = tone_freq
+        cls._tone_amp = tone_amp
 
 
 class TestSetup(TestBase):
@@ -88,7 +91,7 @@ class TestBasics(TestBase):
         self.assertIn('raw_%d_ctrl' % self._zdok_n, self._devices)
         self.assertIn('raw_%d_status' % self._zdok_n, self._devices)
 
-        
+
 class TestCalibration(TestBase):
 
     @classmethod
@@ -143,36 +146,73 @@ class TestInitialSPIControl(TestBase):
         self.assertControlParameterIs('test', 0)
 
 
+class TestSnapshot(TestBase):
+
+    @classmethod
+    def setUpClass(cls):
+        TestBase.setUpClass()
+        cls._sample_rate = cls._clk_rate * 2.
+        cls._tone_per = int(round(cls._sample_rate / cls._tone_freq))
+        cls._raw = adc5g.get_snapshot(cls._roach, 'raw_%d' % cls._zdok_n)
+        cls._raw = list(samp-128 for samp in cls._raw)
+        cls._bias = (cls._raw[0] + cls._raw[cls._tone_per/2])/2.
+        cls._amp = sqrt((cls._raw[0]-cls._bias)**2 + (cls._raw[cls._tone_per/4]-cls._bias)**2)
+        cls._phase = atan2((cls._raw[0]-cls._bias)/cls._amp, (cls._raw[125]-cls._bias)/cls._amp)
+        cls._fit = list(cls._amp*sin(t*2*pi/cls._tone_per + cls._phase) + cls._bias \
+                        for t in range(len(cls._raw)))
+
+    def test_total_bias(self):
+        "check the overall bias of the signal"
+        self.assertLess(abs(self._bias), 5.)
+
+    def test_total_amplitude(self):
+        "check the amplitude of the signal"
+        self.assertLess(abs(self._amp - self._tone_amp), 5.)
+        
+    def test_total_noise(self):
+        "check the total noise level"
+        noise = list(self._raw[i]-self._fit[i] for i in range(len(self._raw)))
+        noise_lvl = sqrt(sum(nsamp**2 for nsamp in noise)/len(noise))
+        self.assertLess(noise_lvl, 5.)
+        
+
 ORDERED_TEST_CASES = [
     TestSetup,
     TestProgramming,
     TestBasics,
     TestCalibration,
     TestInitialSPIControl,
+    TestSnapshot,
     ]
 
 
 def print_tests(option, opt, value, parser):
+    msg = ''
     loader = unittest.TestLoader()
     for i, test_case in enumerate(ORDERED_TEST_CASES):
         if test_case.__doc__:
-            print test_case.__doc__
-        for name in loader.getTestCaseNames(test_case):
+            msg += "\r\n%d. %s\r\n" % (i, test_case.__doc__)
+        else:
+            msg += "\r\n%d. %s\r\n" % (i, test_case.__name__)
+        for j, name in enumerate(loader.getTestCaseNames(test_case)):
             test = getattr(test_case, name)
-            print "%d -> %s" % (i, test.__doc__)
+            if hasattr(test_case, '__doc__'):
+                msg += " .%d %s\r\n" % (j, test.__doc__)
+            else:
+                msg += " .%d %s\r\n" % (j, name)
+    print msg
     sys.exit()
 
 
 def run_tests(verbosity):
     loader = unittest.TestLoader()
     full_suite = unittest.TestSuite(list(loader.loadTestsFromTestCase(test) for test in ORDERED_TEST_CASES))
-    runner = unittest.TextTestRunner(
-        verbosity=verbosity, failfast=True, resultclass=ADC5GTestResult)
+    runner = unittest.TextTestRunner(verbosity=verbosity, failfast=True, resultclass=ADC5GTestResult)
     runner.run(full_suite)
 
 
 def main():
-    global roach, boffile, zdok_n, clk_rate
+    global roach, boffile, zdok_n, clk_rate, tone_freq, tone_amp
     parser = OptionParser()
     parser.add_option("-v", action="store_true", dest="verbose",
                       help="use verbose output while testing")
@@ -188,6 +228,12 @@ def main():
     parser.add_option("-c", "--clk-rate",
                       dest="clk_rate", metavar="CLK_MHZ", type='float', default=2500.0,
                       help="specify the input clock frequency in MHz")
+    parser.add_option("-f", "--tone-freq",
+                      dest="tone_freq", metavar="TONE_FREQ_MHZ", type='float', default=10.0,
+                      help="specify the input tone frequency in MHz")
+    parser.add_option("-a", "--tone-amp",
+                      dest="tone_amp", metavar="TONE_AMP_FS", type='float', default=0.64,
+                      help="specify the input tone amplitude in units of full-scale")
     parser.add_option("-l", "--list", action="callback", callback=print_tests,
                       help="list info on the tests that will be run")
     (options, args) = parser.parse_args()
@@ -207,6 +253,8 @@ def main():
     boffile = options.boffile
     zdok_n = options.zdok_n
     clk_rate = options.clk_rate
+    tone_freq = options.tone_freq
+    tone_amp = options.tone_amp * 128.
     run_tests(verbosity)
 
 
