@@ -6,8 +6,8 @@ on ROACH1 and ROACH2.
 
 Requirements
 ------------
-* Python >= 2.6
-* numpy >= 1.6.1 (only for the 'array' object)
+* Python >= 2.7
+* numpy >= 1.6.2 (only for the 'array' object)
 * corr >= 0.6.9 (only for katcp_wrapper.FpgaClient)
 
 Getting Started
@@ -43,6 +43,32 @@ optimal one, i.e. the one with zero glitches furthest away from the peak.
 The function returns the optimal phase it found and an array containing 
 the number of glitches detected in the ramp at each phase step.
 
+Taking a Snapshot
+-----------------
+If you simply wish to take a quick snapshot you can use the following 
+command with `snap_name` being the name of the snapshot block in your 
+design:
+```python
+import numpy
+raw = numpy.array(adc5g.get_snapshot(roach, snap_name)) - 128
+```
+If you are using the digicom bof files provided in the 'boffiles' 
+directory then `snap_name="raw_%z"%z` where `z` is the ZDOK number 
+of the ADC you wish to capture data from, either `0` or `1`.
+
+Running the Test Suite
+----------------------
+If you want to run the full test suite from a remote machine over 
+TCP/IP using tcpborphserver do the following from the root directory 
+of this repository:
+```bash
+python2.7 test_adc5g.py -v -r roach_name 
+```
+where `roach_name` is the IP or hostname of the ROACH on the network.
+By default this will test only the ADC in ZDOK 0 of the ROACH; to test 
+the one in ZDOK 1 add `-z 1`.
+If you'd like to see a list of options you can use `--help`.
+
 Using the Stand-alone Binary
 ----------------------------
 A stand-alone binary test-script has been compiled for the PowerPC 
@@ -50,6 +76,7 @@ platform and requires the Borph kernel to be running on the ROACH.
 This binary is located in the 'bin' folder and can be run directly 
 on the ROACH using:
 ```bash
-./test_adc5g -v
+./bin/test_adc5g -v
 ```
-If you'd like to see a list of options you can use `--help`.
+The stand-alone binary takes all the same options as the Python 
+test suite since it's simply a "frozen" version of that suite.
