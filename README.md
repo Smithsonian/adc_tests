@@ -43,3 +43,13 @@ optimal one, i.e. the one with zero glitches furthest away from the peak.
 The function returns the optimal phase it found and an array containing 
 the number of glitches detected in the ramp at each phase step.
 
+Using the Stand-alone Binary
+----------------------------
+A stand-alone binary test-script has been compiled for the PowerPC 
+platform and requires the Borph kernel to be running on the ROACH.
+This binary is located in the 'bin' folder and can be run directly 
+on the ROACH using:
+```bash
+./test_adc5g -v
+```
+If you'd like to see a list of options you can use `--help`.
