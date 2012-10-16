@@ -32,7 +32,7 @@ def get_snapshot(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     return data
 
 
-def get_test_vector(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
+def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2):
     """
     Sets the ADC to output a test ramp and reads off the ramp,
     one per core. This should allow a calibration of the MMCM
@@ -44,12 +44,17 @@ def get_test_vector(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     set_spi_control(roach, zdok_n, test=1) before-hand to be in the correct 
     mode.
     """
-    data = get_snapshot(roach, snap_name, bitwidth, man_trig=man_trig, wait_period=2)
-    data_bin = list((p>>1) ^ p for p in data)
-    return data_bin[0::4], data_bin[1::4], data_bin[2::4], data_bin[3::4]
+    data_out = []
+    cores_per_snap = 4/len(snap_names)
+    for snap in snap_names:
+        data = get_snapshot(roach, snap, bitwidth, man_trig=man_trig, wait_period=2)
+        data_bin = list((p>>1) ^ p for p in data)
+        for i in range(cores_per_snap):
+            data_out.append(data_bin[i::cores_per_snap])
+    return data_out
 
 
-def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8, man_trig=True, wait_period=2):
+def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, wait_period=2):
     """
     This function steps through all 56 steps of the MMCM clk-to-out 
     phase and finds total number of glitchss in the test vector ramp 
@@ -59,7 +64,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8, man_trig=True, wa
     set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
     for ps in range(56):
-        core_a, core_c, core_b, core_d = get_test_vector(roach, snap_name, man_trig=man_trig, wait_period=2)
+        core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names, man_trig=man_trig, wait_period=2)
         glitches = total_glitches(core_a, 8) + total_glitches(core_c, 8) + \
             total_glitches(core_b, 8) + total_glitches(core_d, 8)
         glitches_per_ps.append(glitches)
