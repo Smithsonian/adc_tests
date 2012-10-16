@@ -10,6 +10,16 @@ from spi import (
     )
 
 
+def total_glitches(core, bitwidth=8):
+    ramp_max = 2**bitwidth - 1
+    glitches = 0
+    for i in range(len(core)-1):
+        diff = core[i+1] - core[i]
+        if (diff!=1) and (diff!=-ramp_max):
+            glitches += 1
+    return glitches
+
+
 def get_snapshot(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     """
     Reads a one-channel snapshot off the given 
@@ -45,21 +55,13 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_name, bitwidth=8, man_trig=True, wa
     phase and finds total number of glitchss in the test vector ramp 
     per core. It then finds the least glitchy phase step and sets it.
     """
-    ramp_max = 2**bitwidth - 1
-    def total_glitches(core):
-        glitches = 0
-        for i in range(len(core)-1):
-            diff = core[i+1] - core[i]
-            if (diff!=1) and (diff!=-ramp_max):
-                glitches += 1
-        return glitches
     orig_control = get_spi_control(roach, zdok_n)
     set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
     for ps in range(56):
         core_a, core_c, core_b, core_d = get_test_vector(roach, snap_name, man_trig=man_trig, wait_period=2)
-        glitches = total_glitches(core_a) + total_glitches(core_c) + \
-            total_glitches(core_b) + total_glitches(core_d)
+        glitches = total_glitches(core_a, 8) + total_glitches(core_c, 8) + \
+            total_glitches(core_b, 8) + total_glitches(core_d, 8)
         glitches_per_ps.append(glitches)
         inc_mmcm_phase(roach, zdok_n)
     zero_glitches = [gl==0 for gl in glitches_per_ps]
