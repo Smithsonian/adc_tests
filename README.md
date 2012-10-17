@@ -35,8 +35,8 @@ input/capture clocks can then be adjusted until these glitches disappear.
 The 'adc5g' package provides a function for doing so:
 ```python
 import adc5g
-optimal_ps_0, glitches_0 = adc5g.calibrate_mmcm_phase(roach, 0, 'raw_0')
-optimal_ps_1, glitches_1 = adc5g.calibrate_mmcm_phase(roach, 1, 'raw_1')
+optimal_ps_0, glitches_0 = adc5g.calibrate_mmcm_phase(roach, 0, ['raw_0'])
+optimal_ps_1, glitches_1 = adc5g.calibrate_mmcm_phase(roach, 1, ['raw_1'])
 ```
 The calibration steps through all 56 phases and attempts to find the 
 optimal one, i.e. the one with zero glitches furthest away from the peak. 

@@ -111,7 +111,7 @@ def dotest(plotcore = 1):
   by default.
   """
   adc5g.set_spi_control(roach2, zdok, test=1)
-  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, snap_name)
+  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, [snap_name])
   if plotcore == 2:
     plotcore = 3
   elif plotcore == 3:
@@ -205,7 +205,7 @@ def calibrate():
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
-  t = adc5g.calibrate_mmcm_phase(roach2, zdok, snap_name, bitwidth=8)
+  t = adc5g.calibrate_mmcm_phase(roach2, zdok, [snap_name], bitwidth=8)
   print t
 
 def clear_ogp():

@@ -38,7 +38,7 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     one per core. This should allow a calibration of the MMCM
     phase parameter to reduce bit errors.
 
-    core_a, core_c, core_b, core_d = get_test_vector(roach, snap_name)
+    core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names)
 
     NOTE: This function requires the ADC to be in "test" mode, please use 
     set_spi_control(roach, zdok_n, test=1) before-hand to be in the correct 
