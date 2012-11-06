@@ -1,5 +1,6 @@
 from math import floor
 from struct import pack, unpack
+from numpy import array, zeros
 from opb import (
     OPB_CONTROLLER,
     OPB_DATA_FMT,
