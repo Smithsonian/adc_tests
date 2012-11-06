@@ -135,7 +135,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   c4a = plsq4[0][2]
   amp4 = math.sqrt(s4a**2 + c4a**2)
   dly4 = d_fact*math.atan2(s4a, c4a)
-  
+
   avz = (z1+z2+z3+z4)/4.0
   avamp = (amp1+amp2+amp3+amp4)/4.0
   # Reverse the amplitude and zero differences so they can be applied to the
@@ -167,6 +167,9 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   result_fmt = "%8.4f "*15
   sum_result += array(result)
   result_cnt += 1
+#  print "%.3f %.3f %.3f %.3f %d" % (sum_result[5]/result_cnt,\
+#     sum_result[8]/result_cnt,\
+#     sum_result[11]/result_cnt, sum_result[14]/result_cnt, result_cnt)
   if prnt and result_cnt > 1:
     avg_result = sum_result/result_cnt
     avg_result[0] = sig_freq
