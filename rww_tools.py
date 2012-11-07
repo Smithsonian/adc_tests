@@ -1,4 +1,4 @@
-# run ipython rww_tools -pylab -i
+# run ipython rww_tools.py -pylab -i
 import sys
 import os
 import time
