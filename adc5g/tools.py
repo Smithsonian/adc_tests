@@ -27,9 +27,9 @@ def get_snapshot(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     """
 
     grab = roach.snapshot_get(snap_name, man_trig=man_trig, wait_period=2)
-    data = unpack('%iB' %grab['length'], grab['data'])
+    data = unpack('%ib' %grab['length'], grab['data'])
 
-    return data
+    return list(d+128 for d in data)
 
 
 def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2):
@@ -38,7 +38,7 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     one per core. This should allow a calibration of the MMCM
     phase parameter to reduce bit errors.
 
-    core_a, core_c, core_b, core_d = get_test_vector(roach, snap_name)
+    core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names)
 
     NOTE: This function requires the ADC to be in "test" mode, please use 
     set_spi_control(roach, zdok_n, test=1) before-hand to be in the correct 
@@ -60,8 +60,8 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
     phase and finds total number of glitchss in the test vector ramp 
     per core. It then finds the least glitchy phase step and sets it.
     """
-    orig_control = get_spi_control(roach, zdok_n)
-    set_spi_control(roach, zdok_n, test=1)
+    #orig_control = get_spi_control(roach, zdok_n)
+    #set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
     for ps in range(56):
         core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names, man_trig=man_trig, wait_period=2)
@@ -84,7 +84,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
                 optimal_ps = rising + int((falling-rising)/2)
         except ValueError:
             break
-    set_spi_control(roach, zdok_n, **orig_control)
+    #set_spi_control(roach, zdok_n, **orig_control)
     if longest_min==None:
         #raise ValueError("No optimal MMCM phase found!")
         return None, glitches_per_ps

@@ -98,7 +98,7 @@ class TestCalibration(TestBase):
     def setUpClass(cls):
         TestBase.setUpClass()
         cls._optimal_phase, cls._glitches = adc5g.calibrate_mmcm_phase(
-            cls._roach, cls._zdok_n, 'raw_%d' % cls._zdok_n)
+            cls._roach, cls._zdok_n, ['raw_%d' % cls._zdok_n])
 
     def test_optimal_solution_found(self):
         "test if calibration finds optimal MMCM phase"

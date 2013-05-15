@@ -1,4 +1,4 @@
-# run ipython rww_tools -pylab -i
+# run ipython rww_tools.py -pylab -i
 import sys
 import os
 import time
@@ -111,7 +111,7 @@ def dotest(plotcore = 1):
   by default.
   """
   adc5g.set_spi_control(roach2, zdok, test=1)
-  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, snap_name)
+  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, [snap_name])
   if plotcore == 2:
     plotcore = 3
   elif plotcore == 3:
@@ -130,7 +130,7 @@ def dopsd(nfft = numpoints, rpt = 10):
   rpt  The numper of mesurements to be averaged for the plot and output file. 
   """
   for i in range(rpt):
-    power, freqs = adc5g.get_psd(roach2, snap_name, 5e9, 8, nfft)
+    power, freqs = adc5g.get_psd(roach2, snap_name, samp_freq*1e6, 8, nfft)
     if i == 0:
       sp = power
     else:
@@ -173,14 +173,19 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
     set_pwr(n)
     dosnap(rpt=repeat)
 
-def update_ogp(fname = 'ogp'):
+def update_ogp(fname = 'ogp', set=True):
   """
   Retreive the ogp data from the ADC and add in the corrections from
   the measured ogp (in ogp.meas).  Store in the file 'inl'
   """
   cur_ogp = get_ogp_array()
   meas_ogp = genfromtxt("ogp.meas")
+  # Correct for the ~1.4X larger effect of the phase registers than expected
+  for i in (2,5,8,11):
+    meas_ogp[i] *= 0.65
   savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
+  if set:
+    set_ogp()
 
 def update_inl(fname = 'inl.meas'):
   """
@@ -205,7 +210,7 @@ def calibrate():
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
-  t = adc5g.calibrate_mmcm_phase(roach2, zdok, snap_name, bitwidth=8)
+  t = adc5g.calibrate_mmcm_phase(roach2, zdok, [snap_name], bitwidth=8)
   print t
 
 def clear_ogp():
@@ -234,7 +239,7 @@ def set_ogp(fname = 'ogp'):
   Clear the control register and then load the offset, gain and phase
   registers for each core.  These values are hard coded for now.
   """
-  adc5g.set_spi_control(roach2, zdok) # the 0 is for zdok 0
+  adc5g.set_spi_control(roach2, zdok)
   t = genfromtxt(fname)
   set_offs(t[0], t[3], t[6], t[9])
   set_gains(t[1], t[4], t[7], t[10])
@@ -406,6 +411,14 @@ def get_ogp_array():
     indx += 1
   return ogp
 
+def set_zdok(zd):
+  global zdok, snap_name
+  snap_name = "scope_raw_%d_snap" % (zd)
+  zdok = zd
+
+def get_zdok():
+  print "zdok %d, snapshot %s" % (zdok, snap_name)
+
 def og_from_noise(fname="ogp.noise", rpt=100):
   """
   Take a number of snapshots of noise.  Analyze for offset and gain
@@ -415,7 +428,7 @@ def og_from_noise(fname="ogp.noise", rpt=100):
   sum_cnt = 0
   for n in range(rpt):
     result = zeros((15), dtype=float)
-    snap=adc5g.get_snapshot(roach2, snap_name)
+    snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
     l=float(len(snap))
     snap_off=sum(snap)/l
     snap_amp=sum(abs(snap-snap_off))/l
@@ -436,3 +449,15 @@ def og_from_noise(fname="ogp.noise", rpt=100):
   sum_result /= sum_cnt
   print "%.4f "*15 % tuple(sum_result)
   savetxt(fname, sum_result[3:], fmt="%8.4f")
+
+def phase_curve():
+  f= 28/255.
+  ofd = open('phasecurve', 'w')
+  p = {}
+  for i in range(1,5):
+     p[i] = adc5g.get_spi_phase(roach2,zdok,i)
+  for i in range(-10,11):
+    set_phase(p[1]+ f*i,p[2] -f*i,p[3],p[4])
+    ogp, gar = dosnap(rpt=5)
+    print >>ofd, "%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8])
+  set_phase(p[1],p[2],p[3],p[4])
