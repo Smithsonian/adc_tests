@@ -1,9 +1,9 @@
-# run ipython rww_tools.py -pylab -i
+# run ipython rww_tools -pylab -i
 import sys
 import os
 import time
-#from corr import katcp_wrapper
-import katcp_wrapper
+from corr import katcp_wrapper
+#import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
 import adc5g
@@ -14,6 +14,8 @@ import numpy
 import fit_cores
 #interactive(True)
 lanio = "lanio 131.142.9.146 "
+#lanio = "./lanio 169.254.128.178 "
+
 freq = 10.070801
 pwr = 1.0
 numpoints=16384
@@ -111,7 +113,7 @@ def dotest(plotcore = 1):
   by default.
   """
   adc5g.set_spi_control(roach2, zdok, test=1)
-  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, [snap_name])
+  cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, zdok, snap_name)
   if plotcore == 2:
     plotcore = 3
   elif plotcore == 3:
@@ -165,6 +167,39 @@ def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
   savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
   fit_cores.fit_inl()
 
+def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
+  """
+  Runs adc5g.get_psd for a range of frequenciesi in MHz.  
+  The actual frequencies are picked to have an even number of 
+  cycles in the 16384 point snapshot. (This part is copied from multifreq()).
+  Writes out freq and max() of spectrum to freqResponse.dat file.
+  """
+  set_pwr(powerlevel)
+  frfile = open('freqResponse.dat', 'a')
+  f = samp_freq / numpoints
+  nstart = int(0.5+start/f)
+  nend = int(0.5+end/f)
+  nstep = int(0.5+delta/f)
+  for n in range(nstart, nend, nstep):
+    freq = f*n
+    set_freq(freq)
+#    dopsd(rpt=3)
+    for i in range(repeat):
+      power, freqs = adc5g.get_psd(roach2, snap_name, samp_freq*1e6, 8, numpoints)
+      if i == 0:
+        sp = power
+      else:
+        sp += power
+      sp /= repeat
+    power=10*log10(sp)
+#    step(freqs, power)
+    peakpower=max(power)
+    print freq,peakpower
+    output="%f %f\n" % (freq,peakpower)
+    frfile.write(output)
+  frfile.close()
+
+
 def multipwr(start = 1, end = -40, step = -3, repeat=10):
   """
   Calls dosnap for a range of powers
@@ -210,7 +245,7 @@ def calibrate():
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
-  t = adc5g.calibrate_mmcm_phase(roach2, zdok, [snap_name], bitwidth=8)
+  t = adc5g.calibrate_mmcm_phase(roach2, zdok, snap_name, bitwidth=8)
   print t
 
 def clear_ogp():
@@ -278,9 +313,9 @@ def set_inl(fname = 'inl'):
 
 def set_freq(fr, centered = True, prnt=True):
   """
-  Set the synthesizer frequency and save the value for use by dosnap(), etc.
-  If centered is True, pick the closest frequency in the center of a channel
-  ie. wih]th an even number of cycles in a snapshot.
+  Set the synthesizer frequency (MHz) and save the value for use by dosnap(),
+  etc.  If centered is True, pick the closest frequency in the center of a
+  channel ie. wih]th an even number of cycles in a snapshot.
   """
   global freq
   if centered:
@@ -296,7 +331,7 @@ def set_freq(fr, centered = True, prnt=True):
   
 def get_freq():
   """
-  Retreive the frequency from the Agilent Synthesizer and print it.
+  Retreive the frequency from the Agilent Synthesizer and print it (in Hz).
   """
   print os.system(lanio + "\"FREQ?\"")
 
