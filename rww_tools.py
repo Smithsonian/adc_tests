@@ -154,7 +154,7 @@ def dopsd(nfft = numpoints, rpt = 10):
 def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
-  picked to have an even number of cycles in the 16384 point snapshot.
+  picked to have an odd number of cycles in the 16384 point snapshot.
   """
   from numpy import savetxt, log10
   sfd = open('sinad', 'a')
@@ -177,7 +177,7 @@ def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
 def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
   """
   Runs adc5g.get_psd for a range of frequenciesi in MHz.  
-  The actual frequencies are picked to have an even number of 
+  The actual frequencies are picked to have an odd number of 
   cycles in the 16384 point snapshot. (This part is copied from multifreq()).
   Writes out freq and max() of spectrum to freqResponse.dat file.
   """
@@ -327,12 +327,12 @@ def set_freq(fr, centered = True, prnt=True):
   """
   Set the synthesizer frequency (MHz) and save the value for use by dosnap(),
   etc.  If centered is True, pick the closest frequency in the center of a
-  channel ie. wih]th an even number of cycles in a snapshot.
+  channel with an odd number of cycles in a snapshot.
   """
   global freq
   if centered:
     base_freq = samp_freq / numpoints
-    n = int(0.5 + fr/base_freq)
+    n = 2*int(fr/(2.0*base_freq))+1
     freq = base_freq*n
     print "n, freq =  ", n, freq
   else:
