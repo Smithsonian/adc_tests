@@ -54,14 +54,42 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     return data_out
 
 
+def set_test_mode(roach, zdok_n):
+    orig_control = get_spi_control(roach, zdok_n)
+    if hasattr(roach, "adc5g_control"):
+        roach.adc5g_control[zdok_n] = orig_control
+    else:
+        roach.adc5g_control = {zdok_n: orig_control}
+    new_control = orig_control.copy()
+    new_control['test'] = 1
+    set_spi_control(roach, zdok_n, **new_control)
+
+
+def unset_test_mode(roach, zdok_n):
+    try:
+        set_spi_control(roach, zdok_n, **roach.adc5g_control[zdok_n])
+    except AttributeError:
+        raise Exception, "Please use set_test_mode before trying to unset"
+
+
+def sync_adc(roach, zdok_0=True, zdok_1=True):
+    """
+    This sends an external SYNC pulse to the ADC. Set either zdok_0 or 
+    zdok_1 to False to not sync those boards
+
+    This should be used after setting test mode on.
+    """
+    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, 0x0))
+    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, zdok_0 + zdok_1*2))
+    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, 0x00))
+
+
 def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, wait_period=2, ps_range=56):
     """
     This function steps through all 56 steps of the MMCM clk-to-out 
     phase and finds total number of glitchss in the test vector ramp 
     per core. It then finds the least glitchy phase step and sets it.
     """
-    #orig_control = get_spi_control(roach, zdok_n)
-    #set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
     for ps in range(ps_range):
         core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names, man_trig=man_trig, wait_period=2)
@@ -84,7 +112,6 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
                 optimal_ps = rising + int((falling-rising)/2)
         except ValueError:
             break
-    #set_spi_control(roach, zdok_n, **orig_control)
     if longest_min==None:
         #raise ValueError("No optimal MMCM phase found!")
         return None, glitches_per_ps
