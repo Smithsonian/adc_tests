@@ -54,7 +54,7 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     return data_out
 
 
-def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, wait_period=2):
+def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, wait_period=2, ps_range=56):
     """
     This function steps through all 56 steps of the MMCM clk-to-out 
     phase and finds total number of glitchss in the test vector ramp 
@@ -63,7 +63,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
     #orig_control = get_spi_control(roach, zdok_n)
     #set_spi_control(roach, zdok_n, test=1)
     glitches_per_ps = []
-    for ps in range(56):
+    for ps in range(ps_range):
         core_a, core_c, core_b, core_d = get_test_vector(roach, snap_names, man_trig=man_trig, wait_period=2)
         glitches = total_glitches(core_a, 8) + total_glitches(core_c, 8) + \
             total_glitches(core_b, 8) + total_glitches(core_d, 8)
