@@ -29,7 +29,7 @@ def get_snapshot(roach, snap_name, bitwidth=8, man_trig=True, wait_period=2):
     grab = roach.snapshot_get(snap_name, man_trig=man_trig, wait_period=2)
     data = unpack('%ib' %grab['length'], grab['data'])
 
-    return list(d+128 for d in data)
+    return list(d for d in data)
 
 
 def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2):
@@ -48,7 +48,7 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     cores_per_snap = 4/len(snap_names)
     for snap in snap_names:
         data = get_snapshot(roach, snap, bitwidth, man_trig=man_trig, wait_period=2)
-        data_bin = list((p>>1) ^ p for p in data)
+        data_bin = list(((p+128)>>1) ^ (p+128) for p in data)
         for i in range(cores_per_snap):
             data_out.append(data_bin[i::cores_per_snap])
     return data_out
