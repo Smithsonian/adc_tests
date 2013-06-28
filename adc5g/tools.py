@@ -79,9 +79,9 @@ def sync_adc(roach, zdok_0=True, zdok_1=True):
 
     This should be used after setting test mode on.
     """
-    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, 0x0))
-    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, zdok_0 + zdok_1*2))
-    roach.blindwrite("adc5g_controller", pack('>BBBB', 0x00, 0x00, 0x00, 0x00))
+    roach.blindwrite(OPB_CONTROLLER, pack('>BBBB', 0x00, 0x00, 0x00, 0x0))
+    roach.blindwrite(OPB_CONTROLLER, pack('>BBBB', 0x00, 0x00, 0x00, zdok_0 + zdok_1*2))
+    roach.blindwrite(OPB_CONTROLLER, pack('>BBBB', 0x00, 0x00, 0x00, 0x00))
 
 
 def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, wait_period=2, ps_range=56):
