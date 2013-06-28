@@ -120,3 +120,16 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
             inc_mmcm_phase(roach, zdok_n)
         return optimal_ps, glitches_per_ps
 
+
+def get_histogram(roach, zdok_n, core, fmt="hist_{zdok_n}_count_{core}", size=256): 
+    """
+    Reads histogram data from a Shared BRAM.
+
+    Obviously you must have the histogram block instantiated in your design 
+    and the FPGA programmed for this to work. If you have renamed the histogram 
+    blocks then edit the 'fmt' paramater. If you've changed the histogram size 
+    then change the 'size' parameter.
+    """
+    counts = unpack('>{}Q'.format(size), roach.read(fmt.format(zdok_n=zdok_n, core=core), size*8))
+    return counts[:size/2] + counts[size/2:]
+
