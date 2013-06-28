@@ -131,5 +131,5 @@ def get_histogram(roach, zdok_n, core, fmt="hist_{zdok_n}_count_{core}", size=25
     then change the 'size' parameter.
     """
     counts = unpack('>{}Q'.format(size), roach.read(fmt.format(zdok_n=zdok_n, core=core), size*8))
-    return counts[:size/2] + counts[size/2:]
+    return counts[size/2:] + counts[:size/2]
 
