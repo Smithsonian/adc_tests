@@ -147,11 +147,75 @@ def dopsd(nfft = numpoints, rpt = 10):
   plt.step(freqs, 10*log10(sp))
   data = column_stack((freqs/1e6, 10*log10(sp)))
   savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
-#  fd = open("psd", 'w')
-#  for i in range(len(sp)):
-#    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i][0]))
 
-def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
+def dopsdcores(nfft = numpoints/4, rpt = 10):
+  from numpy import savetxt, log10, column_stack
+  from matplotlib.mlab import psd, detrend_mean
+  for i in range(rpt):
+    snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+    power, freqs = psd(snap, nfft*4, Fs=samp_freq*1e6, detrend=detrend_mean, \
+        scale_by_freq=False)
+    if i == 0:
+      psd_all = power[:1+nfft/2]
+    else:
+      psd_all += power[:1+nfft/2]
+    power, freqs = psd(snap[0:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+        scale_by_freq=True)
+    if i == 0:
+      psd1 = power
+    else:
+      psd1 += power
+    power, freqs = psd(snap[1:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+        scale_by_freq=True)
+    if i == 0:
+      psd2 = power
+    else:
+      psd2 += power
+    power, freqs = psd(snap[2:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+        scale_by_freq=True)
+    if i == 0:
+      psd3 = power
+    else:
+      psd3 += power
+    power, freqs = psd(snap[3:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+        scale_by_freq=True)
+    if i == 0:
+      psd4 = power
+    else:
+      psd4 += power
+  data = column_stack((freqs*1e-6, 10*log10(psd_all/rpt), 10*log10(psd1/rpt), \
+      10*log10(psd2/rpt), 10*log10(psd3/rpt), 10*log10(psd4/rpt)))
+  savetxt("psd_cores", data, fmt=('%7.2f'))
+
+def dohist(rpt = 10):
+  from numpy import savetxt, column_stack, bincount, zeros, arange, sum
+  hist_all = zeros(256,dtype=int)
+  hist1 = zeros(256,dtype=int)
+  hist2 = zeros(256,dtype=int)
+  hist3 = zeros(256,dtype=int)
+  hist4 = zeros(256,dtype=int)
+  for i in range(rpt):
+    snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+    hist = bincount(snap, minlength=126)
+    hist_all += hist
+    hist = bincount(snap[0:: 4], minlength=126)
+    hist1 += hist
+    hist = bincount(snap[1:: 4], minlength=126)
+    hist2 += hist
+    hist = bincount(snap[2:: 4], minlength=126)
+    hist3 += hist
+    hist = bincount(snap[3:: 4], minlength=126)
+    hist4 += hist
+  data=column_stack((arange(256, dtype=int), hist_all, hist1, hist2,
+      hist3, hist4))
+  savetxt("hist_cores", data, fmt=("%d"))
+  print "all ",sum(hist_all[0:128]), sum(hist_all[128:256])
+  print "c1  ",sum(hist1[0:128]), sum(hist1[128:256])
+  print "c2  ",sum(hist2[0:128]), sum(hist2[128:256])
+  print "c3  ",sum(hist3[0:128]), sum(hist3[128:256])
+  print "c4  ",sum(hist4[0:128]), sum(hist4[128:256])
+
+def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an odd number of cycles in the 16384 point snapshot.
@@ -165,6 +229,7 @@ def multifreq(start=100, end=2400, step=300, repeat=10, do_sfdr=False):
   for n in range(nstart, nend, nstep):
     freq = f*n
     set_freq(freq)
+#    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = False)
     ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
     sinad = 10.0*log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
@@ -219,7 +284,7 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
 def update_ogp(fname = 'ogp', set=True):
   """
   Retreive the ogp data from the ADC and add in the corrections from
-  the measured ogp (in ogp.meas).  Store in the file 'inl'
+  the measured ogp (in ogp.meas).  Store in the file 'ogp'
   """
   from numpy import savetxt, genfromtxt
   cur_ogp = get_ogp_array()
@@ -231,7 +296,7 @@ def update_ogp(fname = 'ogp', set=True):
   if set:
     set_ogp()
 
-def update_inl(fname = 'inl.meas'):
+def update_inl(fname = 'inl.meas', set=True):
   """
   Retreive the INL data from the ADC and add in the corrections from
   the measured inl (in inl.meas).  Store in the file 'inl'
@@ -242,21 +307,42 @@ def update_inl(fname = 'inl.meas'):
   for level in range(17):
     cur_inl[level][1:] += meas_inl[level][1:]
   savetxt("inl", cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
+  if set:
+    set_inl()
 
-def program():
+def program(progname='adc5g_test.bof'):
   """
-  Program the roach2 with the standard program.  After this, set() and
-  calibrate() should be called
+  Program the roach2 with the standard program.  After this, calibrate()
+  should be called
   """
-  roach2.progdev('adc5g_r2_snap.bof')
+
+  roach2.progdev(progname)
   adc5g.set_spi_control(roach2, zdok)
 
-def calibrate():
+def calibrate(verbose=False):
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
-  t = adc5g.calibrate_mmcm_phase(roach2, zdok, [snap_name,], bitwidth=8)
-  print t
+  adc5g.set_test_mode(roach2, 0)
+  adc5g.set_test_mode(roach2, 1)
+  adc5g.sync_adc(roach2)
+  opt0, glitches0 = adc5g.calibrate_mmcm_phase(roach2, 0, \
+      ['scope_raw_0_snap',])
+  if verbose or (opt0 == None):
+    print "zodk0 ", opt0, glitches0
+  else:
+    print "zodk0", opt0
+  opt1, glitches1 = adc5g.calibrate_mmcm_phase(roach2, 1, \
+      ['scope_raw_1_snap',])
+  if verbose or (opt1 == None):
+    print "zodk1 ", opt1, glitches1
+  else:
+    print "zodk1", opt1
+  adc5g.unset_test_mode(roach2, 0)
+  adc5g.unset_test_mode(roach2, 1)
+
+#  t = adc5g.calibrate_mmcm_phase(roach2, zdok, [snap_name,], bitwidth=8)
+#  print t
 
 def clear_ogp():
   """
