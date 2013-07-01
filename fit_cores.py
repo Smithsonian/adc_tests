@@ -18,14 +18,21 @@ def fitval(p, s, c):
   return p[0] +  p[1] * s + p[2] * c
 
 #This is an array function if the arguments are of type array
+#def residuals(p, s, c, adc):
+#  return adc - fitval(p, s, c)
 def residuals(p, s, c, adc):
-  return adc - fitval(p, s, c)
+  res = adc - fitval(p, s, c)
+#  return array([r if r != 0 and r != 255 else 0 for r in res])
+  for i in range(adc.size):
+    if adc[i] == 0 or adc[i] == 255:
+      res[i] = 0
+  return res
 
 def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   """
   Given a file containing a snapshot of data, separate the data from the
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
-  and phase of the four fits report the average and the difference of each
+ eand phase of the fnur fits report the average and the difference of each
   core from the average.  Write a line in fname.fit giving these values.
   Compute the average difference between the fitted value and measured value
   for each level of each core averaged over the samples (the raw data for
@@ -79,7 +86,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
 
 # express offsets as mV.  1 lsb = 500mV/256. z_fact conf=verts from lsb to mV
   z_fact = 500.0/256.0
-  true_zero = 127 * z_fact
+  true_zero = 128.5 * z_fact
 #  z_fact = 1.0
 # Express delay in ps.  d_fact converts from angle at sig_freq(MHz) to ps
   d_fact = 1e12/(2*math.pi*sig_freq*1e6)
@@ -247,8 +254,12 @@ def fit_inl(df_name='t.res'):
     b = a + 31
     if a < 0:
       a = 0
+    if a == 0 and start_data == 0:
+      a = 1
     if b > file_limit:
       b = file_limit
+    if b == file_limit and data_limit == 256:
+      b -= 1
     if a > b:
       continue
     wt_a = a - corr_level*16 + 15 + start_data
