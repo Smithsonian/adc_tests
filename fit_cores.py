@@ -24,7 +24,7 @@ def residuals(p, s, c, adc):
   res = adc - fitval(p, s, c)
 #  return array([r if r != 0 and r != 255 else 0 for r in res])
   for i in range(adc.size):
-    if adc[i] == 0 or adc[i] == 255:
+    if adc[i] == -128 or adc[i] == 127:
       res[i] = 0
   return res
 
@@ -84,9 +84,9 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   ifd.close()
 
 
-# express offsets as mV.  1 lsb = 500mV/256. z_fact conf=verts from lsb to mV
+# express offsets as mV.  1 lsb = 500mV/256. z_fact converts from lsb to mV
   z_fact = 500.0/256.0
-  true_zero = 128.5 * z_fact
+  true_zero = 0.5 * z_fact
 #  z_fact = 1.0
 # Express delay in ps.  d_fact converts from angle at sig_freq(MHz) to ps
   d_fact = 1e12/(2*math.pi*sig_freq*1e6)
@@ -224,11 +224,13 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     ce_counts[code][3] += 1
   if prnt:
     rfd = open(df_name + '.res', "w")
-    for code in range(256):
+    # Since the INL registers are addressed as offset binary, generate the
+    # .res file that way
+    for code in range(-128,128):
       if ce_counts[code].min() > 4:
         e = code_errors[code]/ce_counts[code]
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
-	    (code, e[0], e[1], e[2], e[3])
+	    (code+128, e[0], e[1], e[2], e[3])
   return ogp, pwr_sinad
 
 def fit_inl(df_name='t.res'):
