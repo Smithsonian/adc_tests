@@ -187,33 +187,42 @@ def dopsdcores(nfft = numpoints/4, rpt = 10):
       10*log10(psd2/rpt), 10*log10(psd3/rpt), 10*log10(psd4/rpt)))
   savetxt("psd_cores", data, fmt=('%7.2f'))
 
-def dohist(rpt = 10):
-  from numpy import savetxt, column_stack, bincount, zeros, arange, sum
-  hist_all = zeros(256,dtype=int)
+def hist_from_snapshots(rpt = 10):
+  from numpy import savetxt, column_stack, bincount, zeros, arange, sum, array
+#  hist_all = zeros(256,dtype=int)
   hist1 = zeros(256,dtype=int)
   hist2 = zeros(256,dtype=int)
   hist3 = zeros(256,dtype=int)
   hist4 = zeros(256,dtype=int)
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
-    hist = bincount(snap, minlength=126)
-    hist_all += hist
-    hist = bincount(snap[0:: 4], minlength=126)
+    snap = 128 + array(snap)
+#    hist = bincount(snap, minlength=256)
+#    hist_all += hist
+    hist = bincount(snap[0:: 4], minlength=256)
     hist1 += hist
-    hist = bincount(snap[1:: 4], minlength=126)
+    hist = bincount(snap[1:: 4], minlength=256)
     hist2 += hist
-    hist = bincount(snap[2:: 4], minlength=126)
+    hist = bincount(snap[2:: 4], minlength=256)
     hist3 += hist
-    hist = bincount(snap[3:: 4], minlength=126)
+    hist = bincount(snap[3:: 4], minlength=256)
     hist4 += hist
-  data=column_stack((arange(256, dtype=int), hist_all, hist1, hist2,
+  data=column_stack((arange(-128., 128, dtype=int), hist1, hist2,
       hist3, hist4))
   savetxt("hist_cores", data, fmt=("%d"))
-  print "all ",sum(hist_all[0:128]), sum(hist_all[128:256])
-  print "c1  ",sum(hist1[0:128]), sum(hist1[128:256])
-  print "c2  ",sum(hist2[0:128]), sum(hist2[128:256])
-  print "c3  ",sum(hist3[0:128]), sum(hist3[128:256])
-  print "c4  ",sum(hist4[0:128]), sum(hist4[128:256])
+#  print "all ",sum(hist_all[0:128]), sum(hist_all[128:256])
+  print "c1  ",sum(hist1[0:128]), sum(hist1[129:256])
+  print "c2  ",sum(hist2[0:128]), sum(hist2[129:256])
+  print "c3  ",sum(hist3[0:128]), sum(hist3[129:256])
+  print "c4  ",sum(hist4[0:128]), sum(hist4[129:256])
+
+def get_hist(fname="hist_cores"):
+  from numpy import empty, sum, savetxt
+  data = empty(shape=(256,5), dtype=int)
+  for c in range(4):
+    data[:, c+1] = adc5g.get_histogram(roach2, zdok, "abcd"[c])
+  data[:,0] = range(-128, 128)
+  savetxt(fname, data, fmt=("%d"))
 
 def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
   """
@@ -441,6 +450,7 @@ def set_pwr(p):
   global pwr
   pwr = p
   os.system(lanio + "\":POW " + str(p) + " dBm\"")
+  os.system(lanio + "\":OUTP 1\"")
   
 def get_pwr():
   """
