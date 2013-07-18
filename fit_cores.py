@@ -32,11 +32,14 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   """
   Given a file containing a snapshot of data, separate the data from the
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
- eand phase of the fnur fits report the average and the difference of each
+  and phase of the four fits, report the average and the difference of each
   core from the average.  Write a line in fname.fit giving these values.
   Compute the average difference between the fitted value and measured value
   for each level of each core averaged over the samples (the raw data for
   INL corrections) and write to fname.res.
+
+  Internally, cores 1-4 are in time sequence, but when the data is
+  written out, write in teh sequence 1324 for cores abcd.
   """
   global sum_result, result_cnt, code_errors, ce_counts
   p0 = [128.0, 90.0, 90.0]
@@ -51,13 +54,13 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   ifd=open(df_name, 'r')
   ofd = open(df_name + ".ogp", 'a')
   if prnt:
-    outfile = df_name + ".c1"
+    outfile = df_name + ".a"
     cfd1 = open(outfile, 'w')
-    outfile = df_name + ".c2"
+    outfile = df_name + ".b"
     cfd2 = open(outfile, 'w')
-    outfile = df_name + ".c3"
+    outfile = df_name + ".c"
     cfd3 = open(outfile, 'w')
-    outfile = df_name + ".c4"
+    outfile = df_name + ".d"
     cfd4 = open(outfile, 'w')
   data_cnt = 0
   for line in ifd:
@@ -86,7 +89,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
 
 # express offsets as mV.  1 lsb = 500mV/256. z_fact converts from lsb to mV
   z_fact = 500.0/256.0
-  true_zero = 0.5 * z_fact
+  true_zero = 0.0 * z_fact
 #  z_fact = 1.0
 # Express delay in ps.  d_fact converts from angle at sig_freq(MHz) to ps
   d_fact = 1e12/(2*math.pi*sig_freq*1e6)
@@ -153,6 +156,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   a3p = 100*(avamp -amp3)/avamp
   a4p = 100*(avamp -amp4)/avamp
   avdly = (dly1+dly2+dly3+dly4)/4.0
+#  print s1a, c1a, s2a, c2a, s3a, c3a, s4a, c4a
   if prnt:
     print "#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq)
     print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
@@ -226,16 +230,17 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     rfd = open(df_name + '.res', "w")
     # Since the INL registers are addressed as offset binary, generate the
     # .res file that way
-    for code in range(-128,128):
+    for code in range(256):
       if ce_counts[code].min() > 4:
         e = code_errors[code]/ce_counts[code]
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
-	    (code+128, e[0], e[1], e[2], e[3])
+	    (code, e[0], e[2], e[1], e[3])
   return ogp, pwr_sinad
 
 def fit_inl(df_name='t.res'):
   """
   Read the raw residuals from fname.res and compute the INL corrections
+  Assume that the residuals file in in core order ie. a,b,c,d.
   """
   
   corrections = zeros((17,5), dtype='float')
@@ -274,10 +279,14 @@ def fit_inl(df_name='t.res'):
     print "%d %7.5f %7.5f %7.5f %7.5f" %  (16*corr_level,av1,av2,av3,av4)
     corrections[corr_level][0] = 16*corr_level
     corrections[corr_level][1] = av1
-    corrections[corr_level][2] = av3
-    corrections[corr_level][3] = av2
+    corrections[corr_level][2] = av2
+    corrections[corr_level][3] = av3
     corrections[corr_level][4] = av4
-  savetxt("inl.meas", corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
+  if df_name[:4] == 'hist':
+    outname = 'hist.inl.meas'
+  else:
+    outname = 'inl.meas'
+  savetxt(outname, corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
 
 
 def dosfdr(sig_freq, fname = 'psd'):
