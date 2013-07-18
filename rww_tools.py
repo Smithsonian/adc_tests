@@ -211,16 +211,17 @@ def hist_from_snapshots(rpt = 10):
       hist3, hist4))
   savetxt("hist_cores", data, fmt=("%d"))
 #  print "all ",sum(hist_all[0:128]), sum(hist_all[128:256])
-  print "c1  ",sum(hist1[0:128]), sum(hist1[129:256])
-  print "c2  ",sum(hist2[0:128]), sum(hist2[129:256])
-  print "c3  ",sum(hist3[0:128]), sum(hist3[129:256])
-  print "c4  ",sum(hist4[0:128]), sum(hist4[129:256])
+  print "core a  ",sum(hist1[0:128]), sum(hist1[129:256])
+  print "core b  ",sum(hist3[0:128]), sum(hist3[129:256])
+  print "core c  ",sum(hist2[0:128]), sum(hist2[129:256])
+  print "core d  ",sum(hist4[0:128]), sum(hist4[129:256])
 
+# For now get_histogram has cores b and c reversed.
 def get_hist(fname="hist_cores"):
   from numpy import empty, sum, savetxt
   data = empty(shape=(256,5), dtype=int)
   for c in range(4):
-    data[:, c+1] = adc5g.get_histogram(roach2, zdok, "abcd"[c])
+    data[:, c+1] = adc5g.get_histogram(roach2, zdok, "acbd"[c])
   data[:,0] = range(-128, 128)
   savetxt(fname, data, fmt=("%d"))
 
