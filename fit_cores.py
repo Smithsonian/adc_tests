@@ -14,14 +14,14 @@ result_cnt = 0
 code_errors = zeros((256,4), dtype='float')
 ce_counts = zeros((256, 4), dtype='int32')
 
-def fitval(p, s, c):
+def fitsin(p, s, c):
   return p[0] +  p[1] * s + p[2] * c
 
 #This is an array function if the arguments are of type array
 #def residuals(p, s, c, adc):
-#  return adc - fitval(p, s, c)
+#  return adc - fitsin(p, s, c)
 def residuals(p, s, c, adc):
-  res = adc - fitval(p, s, c)
+  res = adc - fitsin(p, s, c)
 #  return array([r if r != 0 and r != 255 else 0 for r in res])
   for i in range(adc.size):
     if adc[i] == -128 or adc[i] == 127:
@@ -106,7 +106,8 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   c0a = plsq0[0][2]
   amp0 = math.sqrt(s0a**2 + c0a**2)
   dly0 = d_fact*math.atan2(s0a, c0a)
-  Fit0 = fitval(plsq0[0], args0[0], args0[1])
+  Fit0 = fitsin(plsq0[0], args0[0], args0[1])
+  savetxt(df_name+".fit", Fit0)
   ssq0 = 0.0
   for i in range(data_cnt):
     ssq0 += (adc[i] - Fit0[i])**2
@@ -198,34 +199,34 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   # for each core (n), accumulate the sum of the residuals at each output code
   # in code_errors[code][n]
   # and the count of residuals added in ce_counts[code][n]
-  Fit1 = fitval(plsq1[0], args1[0], args1[1])
+  Fit1 = fitsin(plsq1[0], args1[0], args1[1])
   for i in range(data_cnt/4):
     code = core1[i]
     if prnt:
       print >>cfd1, "%d %d %.2f" % (4 * i, code, Fit1[i])
-    code_errors[code][0] += code - Fit1[i]
-    ce_counts[code][0] += 1
-  Fit2 = fitval(plsq2[0], args2[0], args2[1])
+    code_errors[code+128][0] += code - Fit1[i]
+    ce_counts[code+128][0] += 1
+  Fit2 = fitsin(plsq2[0], args2[0], args2[1])
   for i in range(data_cnt/4):
     code = core2[i]
     if prnt:
       print >>cfd3, "%d %d %.2f" % (4 * i + 1, code, Fit2[i])
-    code_errors[code][1] += code - Fit2[i]
-    ce_counts[code][1] += 1
-  Fit3 = fitval(plsq3[0], args3[0], args3[1])
+    code_errors[code+128][1] += code - Fit2[i]
+    ce_counts[code+128][1] += 1
+  Fit3 = fitsin(plsq3[0], args3[0], args3[1])
   for i in range(data_cnt/4):
     code = core3[i]
     if prnt:
       print >>cfd2, "%d %d %.2f" % (4 * i + 2, code, Fit3[i])
-    code_errors[code][2] += code - Fit3[i]
-    ce_counts[code][2] += 1
-  Fit4 = fitval(plsq4[0], args4[0], args4[1])
+    code_errors[code+128][2] += code - Fit3[i]
+    ce_counts[code+128][2] += 1
+  Fit4 = fitsin(plsq4[0], args4[0], args4[1])
   for i in range(data_cnt/4):
     code = core4[i]
     if prnt:
       print >>cfd4, "%d %d %.2f" % (4 * i + 3, code, Fit4[i])
-    code_errors[code][3] += code - Fit4[i]
-    ce_counts[code][3] += 1
+    code_errors[code+128][3] += code - Fit4[i]
+    ce_counts[code+128][3] += 1
   if prnt:
     rfd = open(df_name + '.res', "w")
     # Since the INL registers are addressed as offset binary, generate the
