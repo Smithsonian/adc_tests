@@ -7,8 +7,10 @@ from corr import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
 import adc5g
-#import matplotlib.pyplot as plt
-import numpy
+import matplotlib.pyplot as plt
+from matplotlib import mlab
+import numpy as np
+from numpy import math
 import fit_cores
 lanio = "lanio 131.142.9.146 "
 
@@ -39,14 +41,13 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
          above are overwritten with each repeat, but new rows of data are added
 	 to the .fit file for each pass.
   """
-  from numpy import savetxt
   global freq
   avg_pwr_sinad = 0
   if fr == 0:
     fr = freq
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
-    savetxt(name, snap,fmt='%d')
+    np.savetxt(name, snap,fmt='%d')
     ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
        clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
     avg_pwr_sinad += pwr_sinad
@@ -59,10 +60,9 @@ def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
   coupled to the global variable.  A random phase is generated for each pass
   """
 
-  from numpy import savetxt
   for i in range(rpt):
     snap=get_sim_data(freq, exact)
-    savetxt(name, snap,fmt='%d')
+    np.savetxt(name, snap,fmt='%d')
     fit_cores.fit_snap(freq, samp_freq, name, i == 0)
 
 def simpsd(freq=318.0, rpt = 1, exact=True):
@@ -70,13 +70,10 @@ def simpsd(freq=318.0, rpt = 1, exact=True):
   Make a simulated snapshot and do the psd analysis on it.  The
   sine wave will have a randon start phase.
   """
-  import matplotlib.pyplot as plt
-  from numpy import log10
-  from pylab import psd, detrend_mean
   for i in range(rpt):
     data = get_sim_data(freq, exact)
-    power, freqs = psd(data, numpoints, Fs=samp_freq*1e6, \
-        detrend=detrend_mean, scale_by_freq=True)
+    power, freqs = mlab.psd(data, numpoints, Fs=samp_freq*1e6, \
+        detrend=mlab.detrend_mean, scale_by_freq=True)
     plt.clf()
     if i == 0:
       sp = power
@@ -84,16 +81,15 @@ def simpsd(freq=318.0, rpt = 1, exact=True):
       sp += power
   sp /= rpt
   print "about to plot", len(freqs)
-  plt.step(freqs, 10*log10(sp))
+  plt.step(freqs, 10*np.log10(sp))
   fd = open("sim.psd", 'w')
   for i in range(len(sp)):
-    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*log10(sp[i]))
+    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*np.log10(sp[i]))
 
 def get_sim_data(freq, exact=True):
   """
   Make a simulated snapshot of data
   """
-  from numpy import math
   if exact:
     offs = [0,0,0,0]
     gains = [1,1,1,1]
@@ -101,11 +97,11 @@ def get_sim_data(freq, exact=True):
     offs = [.2, .3, -.2, -.1]
     gains = [1.001, .9984, .999, 1.002]
   del_phi = 2 * math.pi * freq / samp_freq
-  data = numpy.empty((numpoints), dtype='int32')
-  phase = 2*math.pi * numpy.random.uniform()
+  data = np.empty((numpoints), dtype='int32')
+  phase = 2*math.pi * np.random.uniform()
   for n in range(numpoints):
     core = n&3
-    data[n] = (128 + math.floor(0.5 + 119.0 * math.sin(del_phi * n + phase) + \
+    data[n] = (math.floor(0.5 + 119.0 * math.sin(del_phi * n + phase) + \
         offs[core]))*gains[core]
   return data
 
@@ -114,7 +110,6 @@ def dotest(plotcore = 1):
   Put the adc in test mode and get a sample of the test vector.  Plot core 1
   by default.
   """
-  import matplotlib.pyplot as plt
   global snap_name
   adc5g.set_spi_control(roach2, zdok, test=1)
   cores = (corea, corec, coreb, cored) = adc5g.get_test_vector(roach2, [snap_name,])
@@ -135,8 +130,6 @@ def dopsd(nfft = numpoints, rpt = 10):
        a snapshot has 16384 points, this is the maximum which should be used
   rpt  The numper of mesurements to be averaged for the plot and output file. 
   """
-  from numpy import savetxt, log10, column_stack
-  import matplotlib.pyplot as plt
   for i in range(rpt):
     power, freqs = adc5g.get_psd(roach2, snap_name, samp_freq*1e6, 8, nfft)
     if i == 0:
@@ -144,93 +137,89 @@ def dopsd(nfft = numpoints, rpt = 10):
     else:
       sp += power
   sp /= rpt
-  plt.step(freqs, 10*log10(sp))
-  data = column_stack((freqs/1e6, 10*log10(sp)))
-  savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
+  plt.step(freqs, 10*np.log10(sp))
+  data = np.column_stack((freqs/1e6, 10*np.log10(sp)))
+  np.savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
 
 def dopsdcores(nfft = numpoints/4, rpt = 10):
-  from numpy import savetxt, log10, column_stack
-  from matplotlib.mlab import psd, detrend_mean
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
-    power, freqs = psd(snap, nfft*4, Fs=samp_freq*1e6, detrend=detrend_mean, \
+    power, freqs = mlab.psd(snap, nfft*4, Fs=samp_freq*1e6, detrend=mlab.detrend_mean, \
         scale_by_freq=False)
     if i == 0:
       psd_all = power[:1+nfft/2]
     else:
       psd_all += power[:1+nfft/2]
-    power, freqs = psd(snap[0:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+    power, freqs = mlab.psd(snap[0:: 4], nfft, Fs=samp_freq*.25e6, detrend=mlab.detrend_mean,\
         scale_by_freq=True)
     if i == 0:
       psd1 = power
     else:
       psd1 += power
-    power, freqs = psd(snap[1:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+    power, freqs = mlab.psd(snap[1:: 4], nfft, Fs=samp_freq*.25e6, detrend=mlab.detrend_mean,\
         scale_by_freq=True)
     if i == 0:
       psd2 = power
     else:
       psd2 += power
-    power, freqs = psd(snap[2:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+    power, freqs = mlab.psd(snap[2:: 4], nfft, Fs=samp_freq*.25e6, detrend=mlab.detrend_mean,\
         scale_by_freq=True)
     if i == 0:
       psd3 = power
     else:
       psd3 += power
-    power, freqs = psd(snap[3:: 4], nfft, Fs=samp_freq*.25e6, detrend=detrend_mean,\
+    power, freqs = mlab.psd(snap[3:: 4], nfft, Fs=samp_freq*.25e6, detrend=mlab.detrend_mean,\
         scale_by_freq=True)
     if i == 0:
       psd4 = power
     else:
       psd4 += power
-  data = column_stack((freqs*1e-6, 10*log10(psd_all/rpt), 10*log10(psd1/rpt), \
-      10*log10(psd2/rpt), 10*log10(psd3/rpt), 10*log10(psd4/rpt)))
-  savetxt("psd_cores", data, fmt=('%7.2f'))
+  data = np.column_stack((freqs*1e-6, 10*np.log10(psd_all/rpt), \
+      10*np.log10(psd1/rpt), \
+      10*np.log10(psd2/rpt), 10*np.log10(psd3/rpt), 10*np.log10(psd4/rpt)))
+  np.savetxt("psd_cores", data, fmt=('%7.2f'))
 
 def hist_from_snapshots(rpt = 10):
-  from numpy import savetxt, column_stack, bincount, zeros, arange, sum, array
-#  hist_all = zeros(256,dtype=int)
-  hist1 = zeros(256,dtype=int)
-  hist2 = zeros(256,dtype=int)
-  hist3 = zeros(256,dtype=int)
-  hist4 = zeros(256,dtype=int)
+#  hist_all = np.zeros(256,dtype=int)
+  hist1 = np.zeros(256,dtype=int)
+  hist2 = np.zeros(256,dtype=int)
+  hist3 = np.zeros(256,dtype=int)
+  hist4 = np.zeros(256,dtype=int)
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
-    snap = 128 + array(snap)
-#    hist = bincount(snap, minlength=256)
+    snap = 128 + np.array(snap)
+#    hist = np.bincount(snap, minlength=256)
 #    hist_all += hist
-    hist = bincount(snap[0:: 4], minlength=256)
+    hist = np.bincount(snap[0:: 4], minlength=256)
     hist1 += hist
-    hist = bincount(snap[1:: 4], minlength=256)
+    hist = np.bincount(snap[1:: 4], minlength=256)
     hist2 += hist
-    hist = bincount(snap[2:: 4], minlength=256)
+    hist = np.bincount(snap[2:: 4], minlength=256)
     hist3 += hist
-    hist = bincount(snap[3:: 4], minlength=256)
+    hist = np.bincount(snap[3:: 4], minlength=256)
     hist4 += hist
-  data=column_stack((arange(-128., 128, dtype=int), hist1, hist2,
+  data=np.column_stack((np.arange(-128., 128, dtype=int), hist1, hist2,
       hist3, hist4))
-  savetxt("hist_cores", data, fmt=("%d"))
-#  print "all ",sum(hist_all[0:128]), sum(hist_all[128:256])
-  print "core a  ",sum(hist1[0:128]), sum(hist1[129:256])
-  print "core b  ",sum(hist3[0:128]), sum(hist3[129:256])
-  print "core c  ",sum(hist2[0:128]), sum(hist2[129:256])
-  print "core d  ",sum(hist4[0:128]), sum(hist4[129:256])
+  np.savetxt("hist_cores", data, fmt=("%d"))
+#  print "all ",np.sum(hist_all[0:128]), np.sum(hist_all[128:256])
+  print "core a  ",np.sum(hist1[0:128]), np.sum(hist1[129:256])
+  print "core b  ",np.sum(hist3[0:128]), np.sum(hist3[129:256])
+  print "core c  ",np.sum(hist2[0:128]), np.sum(hist2[129:256])
+  print "core d  ",np.sum(hist4[0:128]), np.sum(hist4[129:256])
 
 # For now get_histogram has cores b and c reversed.
 def get_hist(fname="hist_cores"):
-  from numpy import empty, sum, savetxt
-  data = empty(shape=(256,5), dtype=int)
+  data = np.empty(shape=(256,5), dtype=int)
   for c in range(4):
     data[:, c+1] = adc5g.get_histogram(roach2, zdok, "acbd"[c])
   data[:,0] = range(-128, 128)
-  savetxt(fname, data, fmt=("%d"))
+  np.savetxt(fname, data, fmt=("%d"))
 
 def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an odd number of cycles in the 16384 point snapshot.
   """
-  from numpy import savetxt, log10
   sfd = open('sinad', 'a')
   f = samp_freq / numpoints
   nstart = int(0.5+start/f)
@@ -241,12 +230,12 @@ def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
     set_freq(freq)
 #    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = False)
     ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
-    sinad = 10.0*log10(avg_pwr_sinad)
+    sinad = 10.0*np.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
       dopsd(rpt=3)
       fit_cores.dosfdr(freq)
-  savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
+  np.savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
   fit_cores.fit_inl()
 
 def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
@@ -256,7 +245,6 @@ def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
   cycles in the 16384 point snapshot. (This part is copied from multifreq()).
   Writes out freq and max() of spectrum to freqResponse.dat file.
   """
-  from numpy import log10
   set_pwr(powerlevel)
   frfile = open('freqResponse.dat', 'a')
   f = samp_freq / numpoints
@@ -296,13 +284,12 @@ def update_ogp(fname = 'ogp', set=True):
   Retreive the ogp data from the ADC and add in the corrections from
   the measured ogp (in ogp.meas).  Store in the file 'ogp'
   """
-  from numpy import savetxt, genfromtxt
   cur_ogp = get_ogp_array()
-  meas_ogp = genfromtxt("ogp.meas")
+  meas_ogp = np.genfromtxt("ogp.meas")
   # Correct for the ~1.4X larger effect of the phase registers than expected
   for i in (2,5,8,11):
     meas_ogp[i] *= 0.65
-  savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
+  np.savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
   if set:
     set_ogp()
 
@@ -311,12 +298,11 @@ def update_inl(fname = 'inl.meas', set=True):
   Retreive the INL data from the ADC and add in the corrections from
   the measured inl (in inl.meas).  Store in the file 'inl'
   """
-  from numpy import savetxt, genfromtxt
   cur_inl = get_inl_array()
-  meas_inl = genfromtxt(fname)
+  meas_inl = np.genfromtxt(fname)
   for level in range(17):
     cur_inl[level][1:] += meas_inl[level][1:]
-  savetxt("inl", cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
+  np.savetxt("inl", cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
   if set:
     set_inl()
 
@@ -380,9 +366,8 @@ def set_ogp(fname = 'ogp'):
   Clear the control register and then load the offset, gain and phase
   registers for each core.  These values are hard coded for now.
   """
-  from numpy import genfromtxt
   adc5g.set_spi_control(roach2, zdok)
-  t = genfromtxt(fname)
+  t = np.genfromtxt(fname)
   set_offs(t[0], t[3], t[6], t[9])
   set_gains(t[1], t[4], t[7], t[10])
   set_phase(t[2], t[5], t[8], t[11])
@@ -412,8 +397,7 @@ def set_inl(fname = 'inl'):
   of 5 columns.  The first column contains the level and is ignored.
   Columns 2-5 contain the inl correction for cores a-d
   """
-  from numpy import genfromtxt
-  c = genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
+  c = np.genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
   adc5g.set_inl_registers(roach2,zdok,1,c[0])
   adc5g.set_inl_registers(roach2,zdok,2,c[1])
   adc5g.set_inl_registers(roach2,zdok,3,c[2])
@@ -463,7 +447,6 @@ def set_offs(o1, o2, o3, o4):
   """
   Set the offsets for each core in the order a, b, c, d.
   """
-  from numpy import math
   t = float(o1)
   print math.floor(.5+t*255/100.)+0x80,
   adc5g.set_spi_offset(roach2,zdok, 1, t)
@@ -488,7 +471,6 @@ def set_gains(g1, g2, g3, g4):
   """
   Set the gains for each core in the order a, b, c, d.
   """
-  from numpy import math
   t = float(g1)
   print math.floor(.5+t*255/36.)+0x80,
   adc5g.set_spi_gain(roach2,zdok, 1, t)
@@ -512,7 +494,6 @@ def set_phase(p1, p2, p3, p4):
   """
   Set the phases (delays) for each core in the order a, b, c, d.
   """
-  from numpy import math
   t = float(p1)
   print math.floor(.5+t*255/28.)+0x80,
   adc5g.set_spi_phase(roach2,zdok, 1, t)
@@ -537,8 +518,7 @@ def get_inl_array():
   """
   Read the INL corrections from the adc and put in an array
   """
-  from numpy import zeros
-  inl = zeros((5,17), dtype='float')
+  inl = np.zeros((5,17), dtype='float')
   for chan in range(1,5):
     inl[chan] = adc5g.get_inl_registers(roach2, zdok, chan)
   inl[0] = range(0, 257,16)
@@ -549,8 +529,7 @@ def get_ogp_array():
   Read  the Offset, Gain and Phase corrections for each core from the ADC
   and return in a 1D array
   """
-  from numpy import zeros
-  ogp = zeros((12), dtype='float')
+  ogp = np.zeros((12), dtype='float')
   indx = 0
   for chan in range(1,5):
     ogp[indx] = adc5g.get_spi_offset(roach2,zdok,chan)
@@ -574,15 +553,14 @@ def og_from_noise(fname="ogp.noise", rpt=100):
   Take a number of snapshots of noise.  Analyze for offset and gain
   for each core separately.
   """
-  from numpy import savetxt, zeros
-  sum_result = zeros((15), dtype=float)
+  sum_result = np.zeros((15), dtype=float)
   sum_cnt = 0
   for n in range(rpt):
-    result = zeros((15), dtype=float)
+    result = np.zeros((15), dtype=float)
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
     l=float(len(snap))
-    snap_off=sum(snap)/l
-    snap_amp=sum(abs(snap-snap_off))/l
+    snap_off=np.sum(snap)/l
+    snap_amp=np.sum(abs(snap-snap_off))/l
     result[0]=snap_off
     result[1]=snap_amp
     for core in range(4):
@@ -591,15 +569,15 @@ def og_from_noise(fname="ogp.noise", rpt=100):
       index=(3,9,6,12)[core]
       c=snap[core::4]
       l=float(len(c))
-      off=sum(c)/l
+      off=np.sum(c)/l
       result[index] = (snap_off-off)*500.0/256.0
-      amp=sum(abs(c-off))/l
+      amp=np.sum(abs(c-off))/l
       result[index+1]= 100.0*(snap_amp-amp)/snap_amp
     sum_result += result
     sum_cnt += 1
   sum_result /= sum_cnt
   print "%.4f "*15 % tuple(sum_result)
-  savetxt(fname, sum_result[3:], fmt="%8.4f")
+  np.savetxt(fname, sum_result[3:], fmt="%8.4f")
 
 def phase_curve():
   f= 28/255.
@@ -612,3 +590,33 @@ def phase_curve():
     ogp, gar = dosnap(rpt=5)
     print >>ofd, "%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8])
   set_phase(p[1],p[2],p[3],p[4])
+
+def dohist(fname='hist_cores', type='sin', gethist=True, plt=True):
+  if gethist:
+    get_hist(fname=fname)
+  res = np.empty([5, 256], dtype=float)
+  res[0] = np.arange(256, dtype=float)
+  z_fact = 500.0/256.0
+  (a1,z1), res[1] =fit_cores.fit_hist(1,type, fname)
+  (a2,z2), res[2] =fit_cores.fit_hist(2,type, fname)
+  (a3,z3), res[3] =fit_cores.fit_hist(3,type, fname)
+  (a4,z4), res[4] =fit_cores.fit_hist(4,type, fname)
+  avamp = (a1+a2+a3+a4)/4.0
+  # Reverse the amplitude and zero differences so they can be applied to the
+  # offset and gain registers directly.  The phase registers don't need the
+  # reversal
+  a1p = 100*(avamp -a1)/avamp
+  a2p = 100*(avamp -a2)/avamp
+  a3p = 100*(avamp -a3)/avamp
+  a4p = 100*(avamp -a4)/avamp
+  ogp=np.array([z_fact*z1, a1p, 0, z_fact*z2, a2p, 0, z_fact*z3, a3p, 0, \
+      z_fact*z4, a4p, 0])
+  avz=(z1+z2+z3+z4)*z_fact/4.0
+  print "#avg    %7.4f %7.4f %8.4f" %  (ogp[1], avamp, 0)
+  print "core A  %7.4f %7.4f %8.4f" %  tuple(ogp[0:3])
+  print "core B  %7.4f %7.4f %8.4f" %  tuple(ogp[3:6])
+  print "core C  %7.4f %7.4f %8.4f" %  tuple(ogp[6:9])
+  print "core D  %7.4f %7.4f %8.4f" %  tuple(ogp[9:12])
+  np.savetxt("hist.ogp", ogp, fmt= "%8.4f")
+  np.savetxt("hist.res", np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
+  fit_cores.fit_inl(df_name="hist.res")
