@@ -6,7 +6,8 @@ import os
 import math
 #from scipy import *
 #import adc5g
-from numpy import array, zeros, savetxt, genfromtxt, shape
+from numpy import array, zeros, savetxt, genfromtxt, shape, size
+from numpy import sum, cumsum, genfromtxt, max, min
 from scipy.optimize import leastsq
 from numpy import arccos, pi, empty, arange, array, absolute
 from matplotlib.pyplot import plot
@@ -340,7 +341,16 @@ def dosfdr(sig_freq, fname = 'psd'):
 def cumsin(p, codes):
   amp = p[0]
   arg=(codes-127.5+p[1])/amp
-  return array([0.0 if a > 1.0 else 1-arccos(a)/pi for a in arg])
+  for i in range(size(arg)):
+    a = arg[i]
+    if a > 1.0:
+      arg[i] = 1.0
+    elif a < -1.0:
+      arg[i] = 0.0
+    else:
+      arg[i] = 1-arccos(a)/pi
+  return arg
+#  return array([(sign(a)+1)/2 if abs(a) > 1.0 else 1-arccos(a)/pi for a in arg])
 
 def pltcumsin(p):
   codes = array(range(0,256), dtype=float)
@@ -363,8 +373,7 @@ def hist_residuals(p, codes, cumhist, fit_function):
   return cumhist - fit_function(p, codes)
 
 def fit_hist(core=1, type='sin', fname='hist_cores'):
-  global cumhist, hist, plsq
-  from numpy import sum, cumsum, genfromtxt
+  global cumhist, hist, plsq, cumresid, extended_fit
 
   coderesid=empty(256,dtype=float)
   if type == "sin":
@@ -385,8 +394,10 @@ def fit_hist(core=1, type='sin', fname='hist_cores'):
   extended_fit[257] = 2 * extended_fit[256] - extended_fit[255]
   # invert the sign of cumresid so inl corrections will be correct
   for i in range(256):
-    if(cumresid[i] > 0):
+    if(cumresid[i] > 0 and extended_fit[i+2] > extended_fit[i+1]):
       coderesid[i] = -cumresid[i] / (extended_fit[i+2] - extended_fit[i+1])
-    else:
+    elif(extended_fit[i+1] > extended_fit[i]):
       coderesid[i] = -cumresid[i] / (extended_fit[i+1] - extended_fit[i])
+    else:
+      coderesid[i]=0
   return plsq[0], coderesid
