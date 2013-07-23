@@ -5,9 +5,12 @@ import sys
 import os
 import math
 #from scipy import *
-import adc5g
+#import adc5g
 from numpy import array, zeros, savetxt, genfromtxt, shape
 from scipy.optimize import leastsq
+from numpy import arccos, pi, empty, arange, array, absolute
+from matplotlib.pyplot import plot
+from scipy.special import erfc
 
 sum_result = zeros((15), dtype=float)
 result_cnt = 0
@@ -17,12 +20,8 @@ ce_counts = zeros((256, 4), dtype='int32')
 def fitsin(p, s, c):
   return p[0] +  p[1] * s + p[2] * c
 
-#This is an array function if the arguments are of type array
-#def residuals(p, s, c, adc):
-#  return adc - fitsin(p, s, c)
-def residuals(p, s, c, adc):
+def sin_residuals(p, s, c, adc):
   res = adc - fitsin(p, s, c)
-#  return array([r if r != 0 and r != 255 else 0 for r in res])
   for i in range(adc.size):
     if adc[i] == -128 or adc[i] == 127:
       res[i] = 0
@@ -98,7 +97,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
 #  d_fact = 1
 
   args0 = (array(s), array(c), array(adc))
-  plsq0 = leastsq(residuals, p0, args0)
+  plsq0 = leastsq(sin_residuals, p0, args0)
   #if plsq1[1] != 1:
   #  print "Fit failed to converge"
   z0 = z_fact * plsq0[0][0]
@@ -114,7 +113,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   pwr_sinad = (amp0**2)/(2*ssq0/data_cnt)
 
   args1 = (array(s1), array(c1), array(core1))
-  plsq1 = leastsq(residuals, p0, args1)
+  plsq1 = leastsq(sin_residuals, p0, args1)
   #if plsq1[1] != 1:
   #  print "Fit failed to converge"
   z1 = z_fact * plsq1[0][0]
@@ -124,7 +123,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   dly1 = d_fact*math.atan2(s1a, c1a)
   
   args2 = (array(s2), array(c2), array(core2))
-  plsq2 = leastsq(residuals, p0, args2)
+  plsq2 = leastsq(sin_residuals, p0, args2)
   z2 = z_fact * plsq2[0][0]
   s2a = plsq2[0][1]
   c2a = plsq2[0][2]
@@ -132,7 +131,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   dly2 = d_fact*math.atan2(s2a, c2a)
   
   args3 = (array(s3), array(c3), array(core3))
-  plsq3 = leastsq(residuals, p0, args3)
+  plsq3 = leastsq(sin_residuals, p0, args3)
   z3 = z_fact * plsq3[0][0]
   s3a = plsq3[0][1]
   c3a = plsq3[0][2]
@@ -140,7 +139,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   dly3 = d_fact*math.atan2(s3a, c3a)
   
   args4 = (array(s4), array(c4), array(core4))
-  plsq4 = leastsq(residuals, p0, args4)
+  plsq4 = leastsq(sin_residuals, p0, args4)
   z4 = z_fact * plsq4[0][0]
   s4a = plsq4[0][1]
   c4a = plsq4[0][2]
@@ -337,46 +336,57 @@ def dosfdr(sig_freq, fname = 'psd'):
   print >> outfd, "%8.3f %6.2f %6.2f %6.2f %7.2f" %\
       (sig_freq, sig_db, sfdr, sinad, spur_freq)
 
-#def dosfdr(sig_freq, fname = 'psd'):
-#  sig_peak = -100.0
-#  spur_peak = -100.0
-#  spur_freq = 0.0
-#  outfd = open('sfdr', 'a')
-#  for line in open(fname, 'r'):
-#    freq, db = line.split()
-#    db = float(db)
-#    freq = float(freq)
-#    if abs(freq - sig_freq) < 1.5:
-#      if db > sig_peak:
-#        sig_peak = db
-#    elif db > spur_peak:
-#        spur_peak = db
-#	spur_freq = freq
-#  print >> outfd, "%8.3f %6.2f %6.2f %7.2f" %\
-#      (sig_freq, sig_peak, sig_peak - spur_peak, spur_freq)
-#
-#def get_inl_array(roach, zdok_n):
-#  """
-#  Read the INL corrections from the adc and put in an array
-#  """
-#  inl = zeros((5,17), dtype='float')
-#  for chan in range(1,5):
-#    inl[chan] = adc5g.get_inl_registers(roach, zdok_n, chan)
-#  inl[0] = range(0, 257,16)
-#  return inl.transpose()
-#
-#def get_ogp_array(roach, zdok_n):
-#  """
-#  Read  the Offset, Gain and Phase corrections for each core from the ADC
-#  and return in a 1D array
-#  """
-#  ogp = zeros((12), dtype='float')
-#  indx = 0
-#  for chan in range(1,5):
-#    ogp[indx] = adc5g.get_spi_offset(roach,zdok_n,chan)
-#    indx += 1
-#    ogp[indx] = adc5g.get_spi_gain(roach,zdok_n,chan)
-#    indx += 1
-#    ogp[indx] = adc5g.get_spi_phase(roach,zdok_n,chan)
-#    indx += 1
-#  return ogp
+# Start of code for histograms
+def cumsin(p, codes):
+  amp = p[0]
+  arg=(codes-127.5+p[1])/amp
+  return array([0.0 if a > 1.0 else 1-arccos(a)/pi for a in arg])
+
+def pltcumsin(p):
+  codes = array(range(0,256), dtype=float)
+  cum = cumsin(p, codes)
+  plot(codes,cum)
+  return cum
+
+def cumgaussian(p, codes):
+  amp = p[0]
+  arg=(codes-127.5+p[1])/amp
+  return (1-erfc(arg)/2.0)
+
+def pltcumgaussian(p):
+  codes = array(range(0,256), dtype=float)
+  cum = cumgaussian(p, codes)
+  plot(codes,cum)
+  return cum
+
+def hist_residuals(p, codes, cumhist, fit_function):
+  return cumhist - fit_function(p, codes)
+
+def fit_hist(core=1, type='sin', fname='hist_cores'):
+  global cumhist, hist, plsq
+  from numpy import sum, cumsum, genfromtxt
+
+  coderesid=empty(256,dtype=float)
+  if type == "sin":
+    fit_function = cumsin
+  else:
+    fit_function = cumgaussian
+  codes = arange(0,256, dtype=float)
+  # get the data as a 6x256 array, ie. hist[0] == arange(256)
+  hist = genfromtxt(fname, dtype=float, unpack=True)
+  t=float(sum(hist[core]))
+  cumhist=cumsum(hist[core])/t
+  args = (codes[0:255], cumhist[0:255], fit_function)
+  plsq = leastsq(hist_residuals, [135,0], args)
+  extended_fit = empty(258, dtype=float)
+  cumresid = hist_residuals(plsq[0],codes, cumhist, fit_function)
+  extended_fit[1:257] = cumhist-cumresid
+  extended_fit[0] = 2 * extended_fit[1] - extended_fit[2]
+  extended_fit[257] = 2 * extended_fit[256] - extended_fit[255]
+  # invert the sign of cumresid so inl corrections will be correct
+  for i in range(256):
+    if(cumresid[i] > 0):
+      coderesid[i] = -cumresid[i] / (extended_fit[i+2] - extended_fit[i+1])
+    else:
+      coderesid[i] = -cumresid[i] / (extended_fit[i+1] - extended_fit[i])
+  return plsq[0], coderesid
