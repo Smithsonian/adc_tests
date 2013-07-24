@@ -232,10 +232,12 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     # Since the INL registers are addressed as offset binary, generate the
     # .res file that way
     for code in range(256):
-      if ce_counts[code].min() > 4:
+      if ce_counts[code].min() > 1:
         e = code_errors[code]/ce_counts[code]
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
 	    (code, e[0], e[2], e[1], e[3])
+      else:
+        print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0)
   return ogp, pwr_sinad
 
 def fit_inl(df_name='t.res'):
