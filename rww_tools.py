@@ -620,3 +620,10 @@ def dohist(fname='hist_cores', type='sin', gethist=True, plt=True):
   np.savetxt("hist.ogp", ogp, fmt= "%8.4f")
   np.savetxt("hist.res", np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
   fit_cores.fit_inl(df_name="hist.res")
+
+def plotres(fname="hist.res"):
+  
+  res = np.genfromtxt(fname, unpack=True)
+  plt.plot(res[0][1:-1], res[1][1:-1], res[0][1:-1], res[2][1:-1], \
+           res[0][1:-1], res[3][1:-1], res[0][1:-1], res[4][1:-1])
+
