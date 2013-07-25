@@ -279,17 +279,17 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
     set_pwr(n)
     dosnap(rpt=repeat)
 
-def update_ogp(fname = 'ogp', set=True):
+def update_ogp(fname = 'ogp.meas', set=True):
   """
   Retreive the ogp data from the ADC and add in the corrections from
   the measured ogp (in ogp.meas).  Store in the file 'ogp'
   """
   cur_ogp = get_ogp_array()
-  meas_ogp = np.genfromtxt("ogp.meas")
+  meas_ogp = np.genfromtxt(fname)
   # Correct for the ~1.4X larger effect of the phase registers than expected
   for i in (2,5,8,11):
     meas_ogp[i] *= 0.65
-  np.savetxt(fname, cur_ogp+meas_ogp, fmt="%8.4f")
+  np.savetxt('ogp', cur_ogp+meas_ogp, fmt="%8.4f")
   if set:
     set_ogp()
 
@@ -618,10 +618,10 @@ def dohist(base_name='hist', type='sin', gethist=True, plt=True):
   print "core B  %7.4f %7.4f %8.4f" %  tuple(ogp[3:6])
   print "core C  %7.4f %7.4f %8.4f" %  tuple(ogp[6:9])
   print "core D  %7.4f %7.4f %8.4f" %  tuple(ogp[9:12])
-  np.savetxt(base_name+".ogp", ogp, fmt= "%8.4f")
+  np.savetxt(base_name+"_ogp.meas", ogp, fmt= "%8.4f")
   r_name=base_name+'.res'
   np.savetxt(r_name, np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
-  fit_cores.fit_inl(df_name=r_name)
+  fit_cores.fit_inl(fname=r_name)
   if plt:
     plotres(r_name)
 
