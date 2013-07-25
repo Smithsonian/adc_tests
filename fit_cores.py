@@ -88,7 +88,8 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
 
 
 # express offsets as mV.  1 lsb = 500mV/256. z_fact converts from lsb to mV
-  z_fact = 500.0/256.0
+# negate z_fact for negative feedback
+  z_fact = -500.0/256.0
   true_zero = 0.0 * z_fact
 #  z_fact = 1.0
 # Express delay in ps.  d_fact converts from angle at sig_freq(MHz) to ps
@@ -161,10 +162,10 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   if prnt:
     print "#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq)
     print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
-    print "core A  %7.4f %7.4f %8.4f" %  (true_zero-z1, a1p, dly1-avdly)
-    print "core B  %7.4f %7.4f %8.4f" %  (true_zero-z3, a3p, dly3-avdly)
-    print "core C  %7.4f %7.4f %8.4f" %  (true_zero-z2, a2p, dly2-avdly)
-    print "core D  %7.4f %7.4f %8.4f" %  (true_zero-z4, a4p, dly4-avdly)
+    print "core A  %7.4f %7.4f %8.4f" %  (z1 -true_zero, a1p, dly1-avdly)
+    print "core B  %7.4f %7.4f %8.4f" %  (z3 -true_zero, a3p, dly3-avdly)
+    print "core C  %7.4f %7.4f %8.4f" %  (z2 -true_zero, a2p, dly2-avdly)
+    print "core D  %7.4f %7.4f %8.4f" %  (z4 -true_zero, a4p, dly4-avdly)
     print "\nsinad = %.2f" % (10.0*math.log10(pwr_sinad))
 
   if clear_avgs:
@@ -174,8 +175,8 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     ce_counts = zeros((256, 4), dtype='int32')
 
   result = (sig_freq, avz, avamp,\
-      true_zero-z1, a1p, dly1-avdly, true_zero-z3, a3p, dly3-avdly, \
-      true_zero-z2, a2p, dly2-avdly, true_zero-z4, a4p, dly4-avdly)
+      z1-true_zero, a1p, dly1-avdly, z3-true_zero, a3p, dly3-avdly, \
+      z2-true_zero, a2p, dly2-avdly, z4-true_zero, a4p, dly4-avdly)
   result_fmt = "%8.4f "*15
   sum_result += array(result)
   result_cnt += 1
