@@ -625,9 +625,14 @@ def dohist(base_name='hist', type='sin', gethist=True, plt=True):
   if plt:
     plotres(r_name)
 
-def plotres(fname="hist.res"):
+def plotres(fname="hist.res",title=""):
   
   res = np.genfromtxt(fname, unpack=True)
-  plt.plot(res[0][1:-1], res[1][1:-1], res[0][1:-1], res[2][1:-1], \
-           res[0][1:-1], res[3][1:-1], res[0][1:-1], res[4][1:-1])
+  plt.plot(res[0][1:-1], res[1][1:-1], label='core a')
+  plt.plot(res[0][1:-1], res[2][1:-1], label='core b')
+  plt.plot(res[0][1:-1], res[3][1:-1], label='core c')
+  plt.plot(res[0][1:-1], res[4][1:-1], label='core d')
+  plt.legend(loc=0)
+  if title != "":
+    plt.title(title)
 
