@@ -591,16 +591,17 @@ def phase_curve():
     print >>ofd, "%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8])
   set_phase(p[1],p[2],p[3],p[4])
 
-def dohist(fname='hist_cores', type='sin', gethist=True, plt=True):
+def dohist(base_name='hist', type='sin', gethist=True, plt=True):
+  hc_name=base_name+'_cores'
   if gethist:
-    get_hist(fname=fname)
+    get_hist(fname=hc_name)
   res = np.empty([5, 256], dtype=float)
   res[0] = np.arange(256, dtype=float)
   z_fact = 500.0/256.0
-  (a1,z1), res[1] =fit_cores.fit_hist(1,type, fname)
-  (a2,z2), res[2] =fit_cores.fit_hist(2,type, fname)
-  (a3,z3), res[3] =fit_cores.fit_hist(3,type, fname)
-  (a4,z4), res[4] =fit_cores.fit_hist(4,type, fname)
+  (a1,z1), res[1] =fit_cores.fit_hist(1,type, hc_name)
+  (a2,z2), res[2] =fit_cores.fit_hist(2,type, hc_name)
+  (a3,z3), res[3] =fit_cores.fit_hist(3,type, hc_name)
+  (a4,z4), res[4] =fit_cores.fit_hist(4,type, hc_name)
   avamp = (a1+a2+a3+a4)/4.0
   # Reverse the amplitude and zero differences so they can be applied to the
   # offset and gain registers directly.  The phase registers don't need the
@@ -617,9 +618,12 @@ def dohist(fname='hist_cores', type='sin', gethist=True, plt=True):
   print "core B  %7.4f %7.4f %8.4f" %  tuple(ogp[3:6])
   print "core C  %7.4f %7.4f %8.4f" %  tuple(ogp[6:9])
   print "core D  %7.4f %7.4f %8.4f" %  tuple(ogp[9:12])
-  np.savetxt("hist.ogp", ogp, fmt= "%8.4f")
-  np.savetxt("hist.res", np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
-  fit_cores.fit_inl(df_name="hist.res")
+  np.savetxt(base_name+".ogp", ogp, fmt= "%8.4f")
+  r_name=base_name+'.res'
+  np.savetxt(r_name, np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
+  fit_cores.fit_inl(df_name=r_name)
+  if plt:
+    plotres(r_name)
 
 def plotres(fname="hist.res"):
   
