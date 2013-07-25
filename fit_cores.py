@@ -28,7 +28,7 @@ def sin_residuals(p, s, c, adc):
       res[i] = 0
   return res
 
-def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
+def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   """
   Given a file containing a snapshot of data, separate the data from the
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
@@ -51,16 +51,16 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   c = []		# cos of signal freq
   
   del_phi = 2 * math.pi * sig_freq / samp_freq
-  ifd=open(df_name, 'r')
-  ofd = open(df_name + ".ogp", 'a')
+  ifd=open(fname, 'r')
+  ofd = open(fname + ".ogp", 'a')
   if prnt:
-    outfile = df_name + ".a"
+    outfile = fname + ".a"
     cfd1 = open(outfile, 'w')
-    outfile = df_name + ".b"
+    outfile = fname + ".b"
     cfd2 = open(outfile, 'w')
-    outfile = df_name + ".c"
+    outfile = fname + ".c"
     cfd3 = open(outfile, 'w')
-    outfile = df_name + ".d"
+    outfile = fname + ".d"
     cfd4 = open(outfile, 'w')
   data_cnt = 0
   for line in ifd:
@@ -108,7 +108,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
   amp0 = math.sqrt(s0a**2 + c0a**2)
   dly0 = d_fact*math.atan2(s0a, c0a)
   Fit0 = fitsin(plsq0[0], args0[0], args0[1])
-  savetxt(df_name+".fit", Fit0)
+  savetxt(fname+".fit", Fit0)
   ssq0 = 0.0
   for i in range(data_cnt):
     ssq0 += (adc[i] - Fit0[i])**2
@@ -229,7 +229,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
     code_errors[code+128][3] += code - Fit4[i]
     ce_counts[code+128][3] += 1
   if prnt:
-    rfd = open(df_name + '.res', "w")
+    rfd = open(fname + '.res', "w")
     # Since the INL registers are addressed as offset binary, generate the
     # .res file that way
     for code in range(256):
@@ -241,7 +241,7 @@ def fit_snap(sig_freq, samp_freq, df_name, clear_avgs=True, prnt=True):
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0)
   return ogp, pwr_sinad
 
-def fit_inl(df_name='t.res'):
+def fit_inl(fname='t.res'):
   """
   Read the raw residuals from fname.res and compute the INL corrections
   Assume that the residuals file in in core order ie. a,b,c,d.
@@ -251,7 +251,7 @@ def fit_inl(df_name='t.res'):
   wts = array([1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15,16,\
         15.,14.,13.,12.,11.,10.,9.,8.,7.,6.,5.,4.,3.,2.,1.])
 
-  data = genfromtxt(df_name, unpack=True)
+  data = genfromtxt(fname, unpack=True)
   start_data = int(data[0][0])
   file_limit = len(data[0])
   data_limit = start_data + file_limit
@@ -286,8 +286,8 @@ def fit_inl(df_name='t.res'):
     corrections[corr_level][2] = av2
     corrections[corr_level][3] = av3
     corrections[corr_level][4] = av4
-  if df_name[:4] == 'hist':
-    outname = 'hist.inl.meas'
+  if fname[:4] == 'hist':
+    outname = 'hist_inl.meas'
   else:
     outname = 'inl.meas'
   savetxt(outname, corrections, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
