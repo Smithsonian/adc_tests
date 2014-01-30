@@ -55,7 +55,7 @@ command with `snap_name` being the name of the snapshot block in your
 design:
 ```python
 import numpy
-raw = numpy.array(adc5g.get_snapshot(roach, snap_name)) - 128
+raw = numpy.array(adc5g.get_snapshot(roach, snap_name))
 ```
 If you are using the digicom bof files provided in the 'boffiles' 
 directory then `snap_name="raw_%z"%z` where `z` is the ZDOK number 
