@@ -97,6 +97,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
             total_glitches(core_b, 8) + total_glitches(core_d, 8)
         glitches_per_ps.append(glitches)
         inc_mmcm_phase(roach, zdok_n)
+    glitches_per_ps *= 2
     zero_glitches = [gl==0 for gl in glitches_per_ps]
     n_zero = 0
     longest_min = None
@@ -116,6 +117,7 @@ def calibrate_mmcm_phase(roach, zdok_n, snap_names, bitwidth=8, man_trig=True, w
         #raise ValueError("No optimal MMCM phase found!")
         return None, glitches_per_ps
     else:
+        optimal_ps = optimal_ps % 56
         for ps in range(optimal_ps):
             inc_mmcm_phase(roach, zdok_n)
         return optimal_ps, glitches_per_ps
