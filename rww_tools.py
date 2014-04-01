@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # run ipython rww_tools -pylab -i
 import sys
 import os
@@ -11,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib import mlab
 import numpy as np
 from numpy import math
-import fit_cores
+#import fit_cores
 lanio = "lanio 131.142.9.146 "
 
 freq = 10.070801
@@ -542,7 +544,7 @@ def get_ogp_array():
 
 def set_zdok(zd):
   global zdok, snap_name
-  snap_name = "scope_raw_%d_snap" % (zd)
+  snap_name = "scope_snap%d" % (zd)
   zdok = zd
 
 def get_zdok():
@@ -636,3 +638,22 @@ def plotres(fname="hist.res",title=""):
   if title != "":
     plt.title(title)
 
+
+if __name__ == "__main__":
+
+  command = sys.argv[1]
+
+  for roach2_host in sys.argv[2:]:
+
+    roach2 = katcp_wrapper.FpgaClient(roach2_host)
+    roach2.wait_connected()
+
+    for zdok in [0, 1]:
+
+      set_zdok(zdok)
+      clear_ogp()
+
+      if command == "update":
+        print "Running og_from_noise for %s:zdok=%d" % (roach2_host, zdok)
+        og_from_noise("og%d.noise" % zdok)
+        set_ogp(fname="og%d.noise" % zdok)
