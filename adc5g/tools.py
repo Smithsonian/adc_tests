@@ -54,22 +54,25 @@ def get_test_vector(roach, snap_names, bitwidth=8, man_trig=True, wait_period=2)
     return data_out
 
 
-def set_test_mode(roach, zdok_n):
-    orig_control = get_spi_control(roach, zdok_n)
-    if hasattr(roach, "adc5g_control"):
-        roach.adc5g_control[zdok_n] = orig_control
-    else:
-        roach.adc5g_control = {zdok_n: orig_control}
-    new_control = orig_control.copy()
-    new_control['test'] = 1
+def test_mode(roach, zdok_n, on):
+    curr_control = get_spi_control(roach, zdok_n)
+    new_control = curr_control.copy()
+    new_control['test'] = int(on)
     set_spi_control(roach, zdok_n, **new_control)
 
 
+def set_test_mode(roach, zdok_n):
+    test_mode(roach, zdok_n, on=True)
+    control = get_spi_control(roach, zdok_n)
+    if control['test'] != 1:
+        raise RuntimeError, "Set test mode failed!"
+
+
 def unset_test_mode(roach, zdok_n):
-    try:
-        set_spi_control(roach, zdok_n, **roach.adc5g_control[zdok_n])
-    except AttributeError:
-        raise Exception, "Please use set_test_mode before trying to unset"
+    test_mode(roach, zdok_n, on=False)
+    control = get_spi_control(roach, zdok_n)
+    if control['test'] != 0:
+        raise RuntimeError, "Un-set test mode failed!"
 
 
 def sync_adc(roach, zdok_0=True, zdok_1=True):
