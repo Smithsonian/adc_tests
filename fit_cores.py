@@ -257,8 +257,9 @@ def fit_inl(fname='t.res'):
   data_limit = start_data + file_limit
   print start_data, data_limit
   if data[0][data_limit - start_data - 1] != data_limit - 1:
-    print "there are holes in the data file"
-    return
+    raise RuntimeError("there are holes in the data file")
+#    print "there are holes in the data file"
+#    return
   for corr_level in range(17):
     # a and b are positions in the file
     a = corr_level*16 - 15 - start_data
