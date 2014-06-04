@@ -1,10 +1,14 @@
-#!/usr/bin/python
-
-# run ipython rww_tools -pylab -i
+# run 'ipython --pylab -i'
+# and then in ipython: '%run -i rww_tools.py'
+# the -i there causes rww_tools.py to be run in the interactive name space
 import sys
 import os
 import time
 from corr import katcp_wrapper
+from corr.snap import snapshots_get
+from struct import pack, unpack
+from scipy.signal import correlate
+from scipy.fftpack import fft, rfft
 #import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
@@ -13,7 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib import mlab
 import numpy as np
 from numpy import math
-#import fit_cores
+import fit_cores
 lanio = "lanio 131.142.9.146 "
 
 freq = 10.070801
@@ -21,8 +25,9 @@ pwr = 1.0
 numpoints=16384
 samp_freq = 5000.0
 snap_name = "scope_raw_0_snap"
+prog_name = 'adc5g_test.bof'
 
-def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
+def dosnap(fr=0, name="t", rpt = 1, donot_clear=False, plot=True):
   """
   Takes a snapshot and uses fit_cores to fit a sine function to each
   core separately assuming a CW signal is connected to the input.  The
@@ -49,6 +54,13 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False):
     fr = freq
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+    if(plot):
+      plt.clf()
+      plt.plot(snap)
+      plt.show(block = False)
+      rmsSnap = np.std(snap)
+      loadingFactor = -20.0*math.log10(128/rmsSnap)
+      print "Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
     np.savetxt(name, snap,fmt='%d')
     ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
        clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
@@ -84,6 +96,7 @@ def simpsd(freq=318.0, rpt = 1, exact=True):
   sp /= rpt
   print "about to plot", len(freqs)
   plt.step(freqs, 10*np.log10(sp))
+  plt.show(block = False)
   fd = open("sim.psd", 'w')
   for i in range(len(sp)):
     print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*np.log10(sp[i]))
@@ -119,7 +132,9 @@ def dotest(plotcore = 1):
     plotcore = 3
   elif plotcore == 3:
     plotcore = 2
+  plt.clf()
   plt.plot(cores[plotcore])
+  plt.show(block=False)
   adc5g.set_spi_control(roach2, zdok)
 
 def dopsd(nfft = numpoints, rpt = 10):
@@ -140,6 +155,7 @@ def dopsd(nfft = numpoints, rpt = 10):
       sp += power
   sp /= rpt
   plt.step(freqs, 10*np.log10(sp))
+  plt.show(block = False)
   data = np.column_stack((freqs/1e6, 10*np.log10(sp)))
   np.savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
 
@@ -217,7 +233,7 @@ def get_hist(fname="hist_cores"):
   data[:,0] = range(-128, 128)
   np.savetxt(fname, data, fmt=("%d"))
 
-def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
+def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
   """
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an odd number of cycles in the 16384 point snapshot.
@@ -231,7 +247,7 @@ def multifreq(start=100, end=560, step=50, repeat=10, do_sfdr=False):
     freq = f*n
     set_freq(freq)
 #    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = False)
-    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart)
+    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart, plot=False)
     sinad = 10.0*np.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
@@ -308,34 +324,48 @@ def update_inl(fname = 'inl.meas', set=True):
   if set:
     set_inl()
 
-def program(progname='adc5g_test.bof'):
+def program():
   """
   Program the roach2 with the standard program.  After this, calibrate()
   should be called
   """
+  global prog_name, roach2, samp_freq
 
-  roach2.progdev(progname)
+  roach2.progdev(prog_name)
   adc5g.set_spi_control(roach2, zdok)
+  if prog_name[:8] == 'sma_corr':
+    print "this is correlator code"
+    roach2.write_int('source_ctrl', 18)
+    roach2.write_int('scope_ctrl', 1536)
+    samp_freq = 2288.
+    numpoints = 32768
+  set_zdok(zdok)
 
 def calibrate(verbose=False):
   """
   Call Rurik's routine to calibrate the time delay at the adc interface.
   """
+  global zdok
+
   adc5g.set_test_mode(roach2, 0)
   adc5g.set_test_mode(roach2, 1)
   adc5g.sync_adc(roach2)
+  save_zdok = zdok
+  set_zdok(0)
   opt0, glitches0 = adc5g.calibrate_mmcm_phase(roach2, 0, \
-      ['scope_raw_0_snap',])
+      [snap_name,])
   if verbose or (opt0 == None):
     print "zodk0 ", opt0, glitches0
   else:
     print "zodk0", opt0
+  set_zdok(1)
   opt1, glitches1 = adc5g.calibrate_mmcm_phase(roach2, 1, \
-      ['scope_raw_1_snap',])
+      [snap_name,])
   if verbose or (opt1 == None):
     print "zodk1 ", opt1, glitches1
   else:
     print "zodk1", opt1
+  set_zdok(save_zdok)
   adc5g.unset_test_mode(roach2, 0)
   adc5g.unset_test_mode(roach2, 1)
 
@@ -543,12 +573,32 @@ def get_ogp_array():
   return ogp
 
 def set_zdok(zd):
-  global zdok, snap_name
-  snap_name = "scope_snap%d" % (zd)
+  global zdok, snap_name, prog_name
+  if prog_name[:8] == 'sma_corr':
+    snap_name = "scope_snap%d" % (zd)
+  else:
+    snap_name = "scope_raw_%d_snap" % (zd)
   zdok = zd
 
 def get_zdok():
   print "zdok %d, snapshot %s" % (zdok, snap_name)
+
+def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
+  global roach2, prog_name, zdok, samp_freq, numpoints
+
+  roach2=katcp_wrapper.FpgaClient(r_name)
+  connected = roach2.wait_connected(timeout=2)
+  if connected == False:
+    raise RuntimeError("Unable to connect to %s" %(r_name))
+#    print "Unable to connect to %s" %(r_name)
+#    return connected
+  prog_name = prg_nam
+  set_zdok(zdok)
+  if prog_name[:8] == 'sma_corr':
+    print "this is correlator code"
+    samp_freq = 2288.
+    numpoints = 32768
+#  return connected
 
 def og_from_noise(fname="ogp.noise", rpt=100):
   """
@@ -560,10 +610,12 @@ def og_from_noise(fname="ogp.noise", rpt=100):
   for n in range(rpt):
     result = np.zeros((15), dtype=float)
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+    if(rpt == 1):
+      np.savetxt("t.og_noise", snap,fmt='%d')
     l=float(len(snap))
     snap_off=np.sum(snap)/l
     snap_amp=np.sum(abs(snap-snap_off))/l
-    result[0]=snap_off
+    result[0]=snap_off*(-500.0/256.0)
     result[1]=snap_amp
     for core in range(4):
       # This will actually sample the cores in the order A,C,B,D
@@ -572,11 +624,12 @@ def og_from_noise(fname="ogp.noise", rpt=100):
       c=snap[core::4]
       l=float(len(c))
       off=np.sum(c)/l
-      result[index] = (snap_off-off)*500.0/256.0
+      result[index] = off*(-500.0/256.0)
       amp=np.sum(abs(c-off))/l
       result[index+1]= 100.0*(snap_amp-amp)/snap_amp
     sum_result += result
     sum_cnt += 1
+    print "%.4f "*15 % tuple(result)
   sum_result /= sum_cnt
   print "%.4f "*15 % tuple(sum_result)
   np.savetxt(fname, sum_result[3:], fmt="%8.4f")
@@ -589,7 +642,7 @@ def phase_curve():
      p[i] = adc5g.get_spi_phase(roach2,zdok,i)
   for i in range(-10,11):
     set_phase(p[1]+ f*i,p[2] -f*i,p[3],p[4])
-    ogp, gar = dosnap(rpt=5)
+    ogp, gar = dosnap(rpt=5, plot=False)
     print >>ofd, "%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8])
   set_phase(p[1],p[2],p[3],p[4])
 
@@ -630,6 +683,7 @@ def dohist(base_name='hist', type='sin', gethist=True, plt=True):
 def plotres(fname="hist.res",title=""):
   
   res = np.genfromtxt(fname, unpack=True)
+  plt.clf()
   plt.plot(res[0][1:-1], res[1][1:-1], label='core a')
   plt.plot(res[0][1:-1], res[2][1:-1], label='core b')
   plt.plot(res[0][1:-1], res[3][1:-1], label='core c')
@@ -637,7 +691,69 @@ def plotres(fname="hist.res",title=""):
   plt.legend(loc=0)
   if title != "":
     plt.title(title)
+  plt.show(block=False)
 
+def get_snaps():
+  global raw0, raw1
+  data = snapshots_get([roach2, roach2], ['scope_raw_0_snap', \
+      'scope_raw_1_snap'])
+  raw0 = np.array(unpack('%ib' % data['lengths'][0], data['data'][0]), \
+      dtype=float)
+  raw1 = np.array(unpack('%ib' % data['lengths'][1], data['data'][1]), \
+      dtype=float)
+
+def set_adc_delay(cntr_chan = 0):
+  del0 = 0
+  del1 = 0
+  if(cntr_chan > 0):
+    del1 = cntr_chan
+  else:
+    del0 = -cntr_chan
+  roach2.write('cdelay_ctrl', pack('>I', (1<<31) + (1<<30) + \
+       (del1<<15) + del0),0)
+
+def xcorr_snaps(set_delay = True):
+  global raw0, raw1, xcn
+
+  if(set_delay):
+    set_adc_delay(0)
+  get_snaps()
+  xcn = xcorr(raw0, raw1, maxlags=100, normed=True)
+  maxchan = np.argmax(xcn[1])
+  cntr_chan = xcn[0][maxchan]
+  if(set_delay):
+    set_adc_delay(cntr_chan)
+  print  xcn[1][maxchan], cntr_chan
+
+def fx_snaps(n = 10):
+  global raw0, raw1, xc, xn
+  
+  for cnt in range(n):
+    get_snaps()
+    ft0=fft(raw0)[:8192]
+    ft1=fft(raw1)[:8192]
+    if cnt == 0:
+      xc = ft0*conjugate(ft1)
+      ac0 = ft0*conjugate(ft0)
+      ac1 = ft1*conjugate(ft1)
+#      ac0 = abs(ft0)*abs(ft0)
+#      ac1 = abs(ft1)*abs(ft1)
+    else:
+      xc += ft0*conjugate(ft1)
+      ac0 += ft0*conjugate(ft0)
+      ac1 += ft1*conjugate(ft1)
+#      ac0 += abs(ft0)*abs(ft0)
+#      ac1 += abs(ft1)*abs(ft1)
+  xn = xc/(sqrt(ac0*ac1))
+  np.savetxt('xn.txt', xn.view(float).reshape(-1, 2))
+  print np.mean(abs(xn)), "+-", np.std(abs(xn))
+
+if len(sys.argv) >= 2:
+  print "argv[1] = ", sys.argv[1]
+  if sys.argv[1][:2] == "-x":
+    fn = sys.argv[1][2:]
+    print "About to execute commands in = ",fn
+    execfile(fn)
 
 if __name__ == "__main__":
 
