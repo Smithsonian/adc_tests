@@ -39,7 +39,7 @@ def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   INL corrections) and write to fname.res.
 
   Internally, cores 1-4 are in time sequence, but when the data is
-  written out, write in teh sequence 1324 for cores abcd.
+  written out, write in the sequence 1324 for cores abcd.
   """
   global sum_result, result_cnt, code_errors, ce_counts
   p0 = [128.0, 90.0, 90.0]
@@ -239,6 +239,13 @@ def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
 	    (code, e[0], e[2], e[1], e[3])
       else:
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0)
+  ofd.close()
+  if prnt:
+    cfd1.close()
+    cfd2.close()
+    cfd3.close()
+    cfd4.close()
+    rfd.close()
   return ogp, pwr_sinad
 
 def fit_inl(fname='t.res'):

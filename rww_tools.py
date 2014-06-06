@@ -27,7 +27,7 @@ numpoints=16384
 #snap_name = "scope_raw_0_snap"
 #prog_name = 'adc5g_test.bof'
 
-def dosnap(fr=0, name="t", rpt = 1, donot_clear=False, plot=True):
+def dosnap(fr=0, name=None, rpt = 1, donot_clear=False, plot=True):
   """
   Takes a snapshot and uses fit_cores to fit a sine function to each
   core separately assuming a CW signal is connected to the input.  The
@@ -43,12 +43,15 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False, plot=True):
 	 a, c, b, d.  A line is appended to the file name.fit containing
 	 signal freq, average zero, average amplitude followed by triplets
 	 of zero, amplitude and phase differences for cores a, b, c and d
+	 name defaults to if0 or if1, depending on the current zdok
 
     rpt  The number of repeats.  Defaults to 1.  The c1 .. c4 files mentioned
          above are overwritten with each repeat, but new rows of data are added
 	 to the .fit file for each pass.
   """
   global freq
+  if name == None:
+    name = "if%d" % (zdok)
   avg_pwr_sinad = 0
   if fr == 0:
     fr = freq
@@ -63,7 +66,7 @@ def dosnap(fr=0, name="t", rpt = 1, donot_clear=False, plot=True):
       print "Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
     np.savetxt(name, snap,fmt='%d')
     ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
-       clear_avgs = i == 0 and not donot_clear, prnt = i == rpt-1)
+       clear_avgs = ((i == 0) and not donot_clear), prnt = (i == rpt-1))
     avg_pwr_sinad += pwr_sinad
   return ogp, avg_pwr_sinad/rpt
 
@@ -244,6 +247,7 @@ def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an odd number of cycles in the 16384 point snapshot.
   """
+  name = "if%d" % (zdok)
   sfd = open('sinad', 'a')
   f = samp_freq / numpoints
   nstart = int(0.5+start/f)
@@ -253,14 +257,15 @@ def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
     freq = f*n
     set_freq(freq)
 #    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = False)
-    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = n!=nstart, plot=False)
+    ogp, avg_pwr_sinad = dosnap(rpt=repeat, name = name, \
+          donot_clear = n!=nstart, plot=False)
     sinad = 10.0*np.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
       dopsd(rpt=3)
       fit_cores.dosfdr(freq)
   np.savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
-  fit_cores.fit_inl()
+  fit_cores.fit_inl(name+'.res')
 
 def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
   """
@@ -301,7 +306,7 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
   """
   for n in range(start, end, step):
     set_pwr(n)
-    dosnap(rpt=repeat)
+    dosnap(rpt=repeat, plot=False)
 
 def update_ogp(fname = 'ogp.meas', set=True):
   """
@@ -440,8 +445,8 @@ def set_inl(fname = None):
   Columns 2-5 contain the inl correction for cores a-d
   fname defaults to the standard name in /instance/configFiles on the roach
   """
-  if inl == None:
-    inl = inl_name
+  if fname == None:
+    fname = inl_name
   c = np.genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
   adc5g.set_inl_registers(roach2,zdok,1,c[0])
   adc5g.set_inl_registers(roach2,zdok,2,c[1])
@@ -628,11 +633,13 @@ def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
   set_zdok(zdok)
 #  return connected
 
-def og_from_noise(fname="ogp.noise", rpt=100):
+def og_from_noise(fname=None, rpt=100):
   """
   Take a number of snapshots of noise.  Analyze for offset and gain
   for each core separately.
   """
+  if fname == None:
+    fname = "ogp_if%d.noise" % (zdok)
   sum_result = np.zeros((15), dtype=float)
   sum_cnt = 0
   for n in range(rpt):
