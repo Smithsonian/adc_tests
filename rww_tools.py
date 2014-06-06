@@ -23,9 +23,9 @@ lanio = "lanio 131.142.9.146 "
 freq = 10.070801
 pwr = 1.0
 numpoints=16384
-samp_freq = 5000.0
-snap_name = "scope_raw_0_snap"
-prog_name = 'adc5g_test.bof'
+#samp_freq = 5000.0
+#snap_name = "scope_raw_0_snap"
+#prog_name = 'adc5g_test.bof'
 
 def dosnap(fr=0, name="t", rpt = 1, donot_clear=False, plot=True):
   """
@@ -137,16 +137,20 @@ def dotest(plotcore = 1):
   plt.show(block=False)
   adc5g.set_spi_control(roach2, zdok)
 
-def dopsd(nfft = numpoints, rpt = 10):
+def dopsd(nfft = None, rpt = 10):
   """
   Takes a snapshot, then computes, plots and writes out the Power Spectral
   Density functions.  The psd function is written into a file named "psd".
   This file will be overwritten with each call.  Arguments:
 
-  nfft The number of points in the psd function.  Defaults to 16384.  Since
-       a snapshot has 16384 points, this is the maximum which should be used
+  nfft The number of points in the psd function.  Defaults to the number of
+       points in a snapshot, the maximum which should be used.
+
   rpt  The numper of mesurements to be averaged for the plot and output file. 
+       Defaults to 10.
   """
+  if nfft == None:
+    nfft = numpoints
   for i in range(rpt):
     power, freqs = adc5g.get_psd(roach2, snap_name, samp_freq*1e6, 8, nfft)
     if i == 0:
@@ -159,7 +163,9 @@ def dopsd(nfft = numpoints, rpt = 10):
   data = np.column_stack((freqs/1e6, 10*np.log10(sp)))
   np.savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
 
-def dopsdcores(nfft = numpoints/4, rpt = 10):
+def dopsdcores(nfft = None, rpt = 10):
+  if nfft == None:
+    nfft = numpoints/4
   for i in range(rpt):
     snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
     power, freqs = mlab.psd(snap, nfft*4, Fs=samp_freq*1e6, detrend=mlab.detrend_mean, \
@@ -300,14 +306,15 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
 def update_ogp(fname = 'ogp.meas', set=True):
   """
   Retreive the ogp data from the ADC and add in the corrections from
-  the measured ogp (in ogp.meas).  Store in the file 'ogp'
+  the measured ogp (in ogp.meas).  Store in the standard ogp file
+  in/instance/configFiles for the roach.
   """
   cur_ogp = get_ogp_array()
   meas_ogp = np.genfromtxt(fname)
   # Correct for the ~1.4X larger effect of the phase registers than expected
   for i in (2,5,8,11):
     meas_ogp[i] *= 0.65
-  np.savetxt('ogp', cur_ogp+meas_ogp, fmt="%8.4f")
+  np.savetxt(ogp_name, cur_ogp+meas_ogp, fmt="%8.4f")
   if set:
     set_ogp()
 
@@ -320,7 +327,7 @@ def update_inl(fname = 'inl.meas', set=True):
   meas_inl = np.genfromtxt(fname)
   for level in range(17):
     cur_inl[level][1:] += meas_inl[level][1:]
-  np.savetxt("inl", cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
+  np.savetxt(inl_name, cur_inl, fmt=('%3d','%7.4f','%7.4f','%7.4f','%7.4f'))
   if set:
     set_inl()
 
@@ -333,8 +340,8 @@ def program():
 
   roach2.progdev(prog_name)
   adc5g.set_spi_control(roach2, zdok)
-  if prog_name[:8] == 'sma_corr':
-    print "this is correlator code"
+  if prog_name[:10] != 'adc5g_test':
+    print "set up for correlator code"
     roach2.write_int('source_ctrl', 18)
     roach2.write_int('scope_ctrl', 1536)
     samp_freq = 2288.
@@ -393,11 +400,14 @@ def get_ogp():
   print "core C  %7.4f %7.4f %8.4f" %  (ogp[6], ogp[7], ogp[8])
   print "core D  %7.4f %7.4f %8.4f" %  (ogp[9], ogp[10], ogp[11])
 
-def set_ogp(fname = 'ogp'):
+def set_ogp(fname = None):
   """
   Clear the control register and then load the offset, gain and phase
   registers for each core.  These values are hard coded for now.
+  fname defaults to the standard ogp name in /instance/configFiles on the roach.
   """
+  if fname == None:
+    fname = ogp_name
   adc5g.set_spi_control(roach2, zdok)
   t = np.genfromtxt(fname)
   set_offs(t[0], t[3], t[6], t[9])
@@ -423,12 +433,15 @@ def get_inl():
     print "%3d %5.2f %5.2f %5.2f %5.2f" % tuple(a[level])
     
 
-def set_inl(fname = 'inl'):
+def set_inl(fname = None):
   """
   Set the INL registers for all four cores from a file containing 17 rows
   of 5 columns.  The first column contains the level and is ignored.
   Columns 2-5 contain the inl correction for cores a-d
+  fname defaults to the standard name in /instance/configFiles on the roach
   """
+  if inl == None:
+    inl = inl_name
   c = np.genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
   adc5g.set_inl_registers(roach2,zdok,1,c[0])
   adc5g.set_inl_registers(roach2,zdok,2,c[1])
@@ -573,18 +586,21 @@ def get_ogp_array():
   return ogp
 
 def set_zdok(zd):
-  global zdok, snap_name, prog_name
+  global zdok, snap_name, prog_name, ogp_name, inl_name
   if prog_name[:8] == 'sma_corr':
     snap_name = "scope_snap%d" % (zd)
   else:
     snap_name = "scope_raw_%d_snap" % (zd)
   zdok = zd
+  d = roach_name[-1] if roach_name[-2] == '0' else roach_name[-2:]
+  ogp_name = inst_name+"/configFiles/swarm_ogp_r%s_if%d" % (d, zd)
+  inl_name = inst_name+"/configFiles/swarm_inl_r%s_if%d" % (d, zd)
 
 def get_zdok():
   print "zdok %d, snapshot %s" % (zdok, snap_name)
 
 def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
-  global roach2, prog_name, zdok, samp_freq, numpoints
+  global roach_name, inst_name, roach2, prog_name, zdok, samp_freq, numpoints
 
   roach2=katcp_wrapper.FpgaClient(r_name)
   connected = roach2.wait_connected(timeout=2)
@@ -593,11 +609,23 @@ def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
 #    print "Unable to connect to %s" %(r_name)
 #    return connected
   prog_name = prg_nam
-  set_zdok(zdok)
   if prog_name[:8] == 'sma_corr':
     print "this is correlator code"
     samp_freq = 2288.
     numpoints = 32768
+  elif prog_name[:10] == 'adc5g_test':
+    print "this is adc test code"
+    samp_freq = 5000.0
+    numpoints = 16384
+  else:
+    print "I do not recognize the bit code name, treating it as correlator code"
+    samp_freq = 2288.
+    numpoints = 32768
+  roach_name = r_name
+  d = r_name[-1] if r_name[-2] == '0' else r_name[-2:]
+  inst_name = "/otherInstances/roach2/"+d
+  os.chdir(inst_name+"/adcTests")
+  set_zdok(zdok)
 #  return connected
 
 def og_from_noise(fname="ogp.noise", rpt=100):
@@ -748,21 +776,20 @@ def fx_snaps(n = 10):
   np.savetxt('xn.txt', xn.view(float).reshape(-1, 2))
   print np.mean(abs(xn)), "+-", np.std(abs(xn))
 
-if len(sys.argv) >= 2:
-  print "argv[1] = ", sys.argv[1]
-  if sys.argv[1][:2] == "-x":
-    fn = sys.argv[1][2:]
-    print "About to execute commands in = ",fn
-    execfile(fn)
+setup()
 
-if __name__ == "__main__":
+if __name__ == "__main__" and len(sys.argv) > 2:
 
   command = sys.argv[1]
 
   for roach2_host in sys.argv[2:]:
 
     roach2 = katcp_wrapper.FpgaClient(roach2_host)
-    roach2.wait_connected()
+    connected = roach2.wait_connected(timeout=2)
+    if connected == False:
+      raise RuntimeError("Unable to connect to %s" %(roach2_host))
+
+#    roach2.wait_connected()
 
     for zdok in [0, 1]:
 
