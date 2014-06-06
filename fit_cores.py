@@ -28,7 +28,7 @@ def sin_residuals(p, s, c, adc):
       res[i] = 0
   return res
 
-def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
+def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   """
   Given a file containing a snapshot of data, separate the data from the
   4 cores and fit a separate sine wave to each.  From the dc offset, gain
@@ -46,12 +46,12 @@ def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   ogp = ()
   
   # Create lists to hold parameters at sample rate
-  adc = []	# adc value
+#  adc = []	# adc value
   s = []		# sin of signal freq
   c = []		# cos of signal freq
   
   del_phi = 2 * math.pi * sig_freq / samp_freq
-  ifd=open(fname, 'r')
+#  ifd=open(fname, 'r')
   ofd = open(fname + ".ogp", 'a')
   if prnt:
     outfile = fname + ".a"
@@ -62,14 +62,15 @@ def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
     cfd3 = open(outfile, 'w')
     outfile = fname + ".d"
     cfd4 = open(outfile, 'w')
-  data_cnt = 0
-  for line in ifd:
-    if line[0] == "#":
-      continue
-    adc += [int(line)]
+#  data_cnt = 0
+#  for line in ifd:
+#    if line[0] == "#":
+#      continue
+  for data_cnt in range(len(adc)):
+#    adc += [int(line)]
     s += [math.sin(del_phi * data_cnt)]
     c += [math.cos(del_phi * data_cnt)]
-    data_cnt += 1
+#    data_cnt += 1
   
   core1 = adc[0:: 4]
   core2 = adc[1:: 4]
@@ -84,7 +85,7 @@ def fit_snap(sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   c3 = c[2:: 4]
   c4 = c[3:: 4]
   
-  ifd.close()
+#  ifd.close()
 
 
 # express offsets as mV.  1 lsb = 500mV/256. z_fact converts from lsb to mV

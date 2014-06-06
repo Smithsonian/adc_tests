@@ -64,8 +64,9 @@ def dosnap(fr=0, name=None, rpt = 1, donot_clear=False, plot=True):
       rmsSnap = np.std(snap)
       loadingFactor = -20.0*math.log10(128/rmsSnap)
       print "Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
-    np.savetxt(name, snap,fmt='%d')
-    ogp, pwr_sinad = fit_cores.fit_snap(fr, samp_freq, name,\
+    if i == rpt-1:
+      np.savetxt(name, snap,fmt='%d')
+    ogp, pwr_sinad = fit_cores.fit_snap(snap, fr, samp_freq, name,\
        clear_avgs = ((i == 0) and not donot_clear), prnt = (i == rpt-1))
     avg_pwr_sinad += pwr_sinad
   return ogp, avg_pwr_sinad/rpt
@@ -79,8 +80,9 @@ def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
 
   for i in range(rpt):
     snap=get_sim_data(freq, exact)
-    np.savetxt(name, snap,fmt='%d')
-    fit_cores.fit_snap(freq, samp_freq, name, i == 0)
+    if i == rpt-1:
+      np.savetxt(name, snap,fmt='%d')
+    fit_cores.fit_snap(snap, freq, samp_freq, name, i == 0)
 
 def simpsd(freq=318.0, rpt = 1, exact=True):
   """
