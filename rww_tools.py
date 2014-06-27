@@ -142,7 +142,7 @@ def dotest(plotcore = 1):
   plt.show(block=False)
   adc5g.set_spi_control(roach2, zdok)
 
-def dopsd(nfft = None, rpt = 10):
+def dopsd(nfft = None, rpt = 10, plotdB=True):
   """
   Takes a snapshot, then computes, plots and writes out the Power Spectral
   Density functions.  The psd function is written into a file named "psd".
@@ -163,7 +163,10 @@ def dopsd(nfft = None, rpt = 10):
     else:
       sp += power
   sp /= rpt
-  plt.step(freqs, 10*np.log10(sp))
+  if plotdB:
+    plt.step(freqs, 10*np.log10(sp))
+  else:
+    plt.step(freqs, (sp))
   plt.show(block = False)
   data = np.column_stack((freqs/1e6, 10*np.log10(sp)))
   np.savetxt("psd", data, fmt=('%7.2f', '%6.1f'))
@@ -785,27 +788,34 @@ def fx_snaps(n = 10):
   np.savetxt('xn.txt', xn.view(float).reshape(-1, 2))
   print np.mean(abs(xn)), "+-", np.std(abs(xn))
 
-setup()
+#setup()
+#print name = "__name__"
 
 if __name__ == "__main__" and len(sys.argv) > 2:
 
   command = sys.argv[1]
 
-  for roach2_host in sys.argv[2:]:
+  if command == "update":
+    for roach2_host in sys.argv[2:]:
 
-    roach2 = katcp_wrapper.FpgaClient(roach2_host)
-    connected = roach2.wait_connected(timeout=2)
-    if connected == False:
-      raise RuntimeError("Unable to connect to %s" %(roach2_host))
+      roach2 = katcp_wrapper.FpgaClient(roach2_host)
+      connected = roach2.wait_connected(timeout=2)
+      if connected == False:
+        raise RuntimeError("Unable to connect to %s" %(roach2_host))
 
 #    roach2.wait_connected()
 
-    for zdok in [0, 1]:
-
-      set_zdok(zdok)
-      clear_ogp()
-
-      if command == "update":
+      for zdok in [0, 1]:
+  
+        set_zdok(zdok)
+        clear_ogp()
+  
+#        if command == "update":
         print "Running og_from_noise for %s:zdok=%d" % (roach2_host, zdok)
         og_from_noise("og%d.noise" % zdok)
         set_ogp(fname="og%d.noise" % zdok)
+  elif command == 'setup':
+    setup(sys.argv[2])
+  else:
+    print "Please rune setup(roach2-nn before trying anything else"
+
