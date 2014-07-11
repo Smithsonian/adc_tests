@@ -19,6 +19,7 @@ import numpy as np
 from numpy import math
 import fit_cores
 lanio = "lanio 131.142.9.146 "
+DEFAULT_BITCODE = 'sma_corr_2014_Apr_21_1603.bof.gz'
 
 freq = 10.070801
 pwr = 1.0
@@ -70,6 +71,23 @@ def dosnap(fr=0, name=None, rpt = 1, donot_clear=False, plot=True):
        clear_avgs = ((i == 0) and not donot_clear), prnt = (i == rpt-1))
     avg_pwr_sinad += pwr_sinad
   return ogp, avg_pwr_sinad/rpt
+
+def get_rms():
+  global zdok
+
+  save_zdok = zdok
+  set_zdok(0)
+  snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+  rmsSnap = np.std(snap)
+  loadingFactor = -20.0*math.log10(128/rmsSnap)
+  print "If0 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
+  set_zdok(1)
+  snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
+  rmsSnap = np.std(snap)
+  loadingFactor = -20.0*math.log10(128/rmsSnap)
+  print "If1 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
+  if zdok != save_zdok:
+    set_zdok(save_zdok)
 
 def dosim(freq=10.070801, name="sim", rpt = 1, exact=True):
   """
@@ -153,6 +171,8 @@ def dopsd(nfft = None, rpt = 10, plotdB=True):
 
   rpt  The numper of mesurements to be averaged for the plot and output file. 
        Defaults to 10.
+
+  plotdB controls whether the plot is linear in power or in dB
   """
   if nfft == None:
     nfft = numpoints
@@ -252,6 +272,8 @@ def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
   Calls dosnap for a range of frequenciesi in MHz.  The actual frequencies are
   picked to have an odd number of cycles in the 16384 point snapshot.
   """
+  global ogp_name
+
   name = "if%d" % (zdok)
   sfd = open('sinad', 'a')
   f = samp_freq / numpoints
@@ -262,14 +284,14 @@ def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
     freq = f*n
     set_freq(freq)
 #    ogp, avg_pwr_sinad = dosnap(rpt=repeat, donot_clear = False)
-    ogp, avg_pwr_sinad = dosnap(rpt=repeat, name = name, \
+    ogp, avg_pwr_sinad = dosnap(rpt=repeat, name=name,\
           donot_clear = n!=nstart, plot=False)
     sinad = 10.0*np.log10(avg_pwr_sinad)
     print >>sfd, "%8.3f %7.2f" % (freq, sinad)
     if do_sfdr:
       dopsd(rpt=3)
       fit_cores.dosfdr(freq)
-  np.savetxt("ogp.meas", ogp[3:], fmt="%8.4f")
+  np.savetxt(ogp_name+".meas", ogp[3:], fmt="%8.4f")
   fit_cores.fit_inl(name+'.res')
 
 def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
@@ -313,12 +335,16 @@ def multipwr(start = 1, end = -40, step = -3, repeat=10):
     set_pwr(n)
     dosnap(rpt=repeat, plot=False)
 
-def update_ogp(fname = 'ogp.meas', set=True):
+def update_ogp(fname = None, set=True):
   """
   Retreive the ogp data from the ADC and add in the corrections from
   the measured ogp (in ogp.meas).  Store in the standard ogp file
   in/instance/configFiles for the roach.
   """
+  global ogp_name
+
+  if fname == None:
+    fname = ogp_name+".meas"
   cur_ogp = get_ogp_array()
   meas_ogp = np.genfromtxt(fname)
   # Correct for the ~1.4X larger effect of the phase registers than expected
@@ -328,11 +354,15 @@ def update_ogp(fname = 'ogp.meas', set=True):
   if set:
     set_ogp()
 
-def update_inl(fname = 'inl.meas', set=True):
+def update_inl(fname = None, set=True):
   """
   Retreive the INL data from the ADC and add in the corrections from
   the measured inl (in inl.meas).  Store in the file 'inl'
   """
+  global inl_name
+
+  if fname == None:
+    fname = inl_name+".meas"
   cur_inl = get_inl_array()
   meas_inl = np.genfromtxt(fname)
   for level in range(17):
@@ -351,7 +381,7 @@ def program():
   roach2.progdev(prog_name)
   adc5g.set_spi_control(roach2, zdok)
   if prog_name[:10] != 'adc5g_test':
-    print "set up for correlator code"
+#    print "set up for correlator code"
     roach2.write_int('source_ctrl', 18)
     roach2.write_int('scope_ctrl', 1536)
     samp_freq = 2288.
@@ -416,6 +446,8 @@ def set_ogp(fname = None):
   registers for each core.  These values are hard coded for now.
   fname defaults to the standard ogp name in /instance/configFiles on the roach.
   """
+  global ogp_name
+
   if fname == None:
     fname = ogp_name
   adc5g.set_spi_control(roach2, zdok)
@@ -450,6 +482,8 @@ def set_inl(fname = None):
   Columns 2-5 contain the inl correction for cores a-d
   fname defaults to the standard name in /instance/configFiles on the roach
   """
+  global inl_name
+
   if fname == None:
     fname = inl_name
   c = np.genfromtxt(fname, usecols=(1,2,3,4), unpack=True)
@@ -603,13 +637,13 @@ def set_zdok(zd):
     snap_name = "scope_raw_%d_snap" % (zd)
   zdok = zd
   d = roach_name[-1] if roach_name[-2] == '0' else roach_name[-2:]
-  ogp_name = inst_name+"/configFiles/swarm_ogp_r%s_if%d" % (d, zd)
-  inl_name = inst_name+"/configFiles/swarm_inl_r%s_if%d" % (d, zd)
+  ogp_name = inst_name+"/configFiles/ogp_if%d" % (zd)
+  inl_name = inst_name+"/configFiles/inl_if%d" % (zd)
 
 def get_zdok():
   print "zdok %d, snapshot %s" % (zdok, snap_name)
 
-def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
+def setup(r_name='roach2-00', prg_nam=DEFAULT_BITCODE):
   global roach_name, inst_name, roach2, prog_name, zdok, samp_freq, numpoints
 
   roach2=katcp_wrapper.FpgaClient(r_name)
@@ -620,7 +654,7 @@ def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
 #    return connected
   prog_name = prg_nam
   if prog_name[:8] == 'sma_corr':
-    print "this is correlator code"
+#    print "this is correlator code"
     samp_freq = 2288.
     numpoints = 32768
   elif prog_name[:10] == 'adc5g_test':
@@ -638,13 +672,15 @@ def setup(r_name='roach2-00', prg_nam='sma_corr_2014_Apr_21_1603.bof.gz'):
   set_zdok(zdok)
 #  return connected
 
-def og_from_noise(fname=None, rpt=100):
+def og_from_noise(fname=None, rpt=100, printEach=False):
   """
   Take a number of snapshots of noise.  Analyze for offset and gain
   for each core separately.
   """
+  global ogp_name
+
   if fname == None:
-    fname = "ogp_if%d.noise" % (zdok)
+    fname = ogp_name+".meas"
   sum_result = np.zeros((15), dtype=float)
   sum_cnt = 0
   for n in range(rpt):
@@ -669,7 +705,8 @@ def og_from_noise(fname=None, rpt=100):
       result[index+1]= 100.0*(snap_amp-amp)/snap_amp
     sum_result += result
     sum_cnt += 1
-    print "%.4f "*15 % tuple(result)
+    if printEach:
+      print "%.4f "*15 % tuple(result)
   sum_result /= sum_cnt
   print "%.4f "*15 % tuple(sum_result)
   np.savetxt(fname, sum_result[3:], fmt="%8.4f")
@@ -796,26 +833,28 @@ if __name__ == "__main__" and len(sys.argv) > 2:
   command = sys.argv[1]
 
   if command == "update":
-    for roach2_host in sys.argv[2:]:
-
-      roach2 = katcp_wrapper.FpgaClient(roach2_host)
-      connected = roach2.wait_connected(timeout=2)
-      if connected == False:
-        raise RuntimeError("Unable to connect to %s" %(roach2_host))
-
-#    roach2.wait_connected()
-
+    r_list = []
+    for s in sys.argv[2:]:
+      for a in s.split(','):
+        l = a.split('..')
+        if len(l) == 1:
+          r_list.append(int(l[0]))
+        else:
+          for i in range(int(l[0]), int(l[-1])+1):
+            r_list.append(i)
+        print "Roaches to be set up", r_list
+    
+    for n in r_list:
+      roach2_host = 'roach2-%02d' % (int(n))
+      setup(r_name = roach2_host)
       for zdok in [0, 1]:
-  
-        set_zdok(zdok)
-        clear_ogp()
-  
-#        if command == "update":
         print "Running og_from_noise for %s:zdok=%d" % (roach2_host, zdok)
-        og_from_noise("og%d.noise" % zdok)
-        set_ogp(fname="og%d.noise" % zdok)
+        set_zdok(zdok)
+        set_ogp()
+        og_from_noise()
+        update_ogp()
   elif command == 'setup':
     setup(sys.argv[2])
   else:
-    print "Please rune setup(roach2-nn before trying anything else"
+    print "Please run setup('roach2-nn') before trying anything else"
 
