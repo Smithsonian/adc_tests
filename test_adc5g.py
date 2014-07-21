@@ -161,7 +161,7 @@ class TestSnapshot(TestBase):
         cls._sample_rate = cls._clk_rate * 2.
         cls._tone_per = int(round(cls._sample_rate / cls._tone_freq))
         cls._raw = adc5g.get_snapshot(cls._roach, 'scope_raw_%d_snap' % cls._zdok_n)
-        cls._raw = list(samp-128 for samp in cls._raw)
+        cls._raw = list(samp/128. for samp in cls._raw)
         cls._bias = (cls._raw[0] + cls._raw[cls._tone_per/2])/2.
         cls._amp = sqrt((cls._raw[0]-cls._bias)**2 + (cls._raw[cls._tone_per/4]-cls._bias)**2)
         cls._phase = atan2((cls._raw[0]-cls._bias)/cls._amp, (cls._raw[125]-cls._bias)/cls._amp)
@@ -261,7 +261,7 @@ def main():
     zdok_n = options.zdok_n
     clk_rate = options.clk_rate
     tone_freq = options.tone_freq
-    tone_amp = options.tone_amp * 128.
+    tone_amp = options.tone_amp
     run_tests(verbosity)
 
 
