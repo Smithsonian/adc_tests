@@ -87,9 +87,9 @@ class TestBasics(TestBase):
 
     def test_has_scope(self):
         "confirm the design has the needed scope"
-        self.assertIn('raw_%d_bram' % self._zdok_n, self._devices)
-        self.assertIn('raw_%d_ctrl' % self._zdok_n, self._devices)
-        self.assertIn('raw_%d_status' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_bram' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_ctrl' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_status' % self._zdok_n, self._devices)
 
 
 class TestCalibration(TestBase):
@@ -98,7 +98,7 @@ class TestCalibration(TestBase):
     def setUpClass(cls):
         TestBase.setUpClass()
         cls._optimal_phase, cls._glitches = adc5g.calibrate_mmcm_phase(
-            cls._roach, cls._zdok_n, ['raw_%d' % cls._zdok_n])
+            cls._roach, cls._zdok_n, ['scope_raw_%d_snap' % cls._zdok_n])
 
     def test_optimal_solution_found(self):
         "test if calibration finds optimal MMCM phase"
@@ -153,7 +153,7 @@ class TestSnapshot(TestBase):
         TestBase.setUpClass()
         cls._sample_rate = cls._clk_rate * 2.
         cls._tone_per = int(round(cls._sample_rate / cls._tone_freq))
-        cls._raw = adc5g.get_snapshot(cls._roach, 'raw_%d' % cls._zdok_n)
+        cls._raw = adc5g.get_snapshot(cls._roach, 'scope_raw_%d_snap' % cls._zdok_n)
         cls._raw = list(samp-128 for samp in cls._raw)
         cls._bias = (cls._raw[0] + cls._raw[cls._tone_per/2])/2.
         cls._amp = sqrt((cls._raw[0]-cls._bias)**2 + (cls._raw[cls._tone_per/4]-cls._bias)**2)
