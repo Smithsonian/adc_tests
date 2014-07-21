@@ -97,12 +97,19 @@ class TestCalibration(TestBase):
     @classmethod
     def setUpClass(cls):
         TestBase.setUpClass()
+        adc5g.set_test_mode(cls._roach, cls._zdok_n)
+        adc5g.sync_adc(cls._roach)
         cls._optimal_phase, cls._glitches = adc5g.calibrate_mmcm_phase(
             cls._roach, cls._zdok_n, ['scope_raw_%d_snap' % cls._zdok_n])
 
     def test_optimal_solution_found(self):
         "test if calibration finds optimal MMCM phase"
         self.assertIsNotNone(self._optimal_phase)
+
+    @classmethod
+    def tearDownClass(cls):
+        TestBase.tearDownClass()
+        adc5g.unset_test_mode(cls._roach, cls._zdok_n)
 
 
 class TestInitialSPIControl(TestBase):
