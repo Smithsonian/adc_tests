@@ -227,7 +227,7 @@ def main():
                       dest="remote", metavar="HOST:PORT",
                       help="run tests remotely over katcp using HOST and PORT")
     parser.add_option("-b", "--boffile",
-                      dest="boffile", metavar="BOFFILE", default="adc5g_test.bof",
+                      dest="boffile", metavar="BOFFILE", default="adc5g_test_rev2.bof.gz",
                       help="test using the BOFFILE bitcode")
     parser.add_option("-z", "--zdok",
                       dest="zdok_n", metavar="ZDOK", type='int', default=0,
