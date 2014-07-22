@@ -73,15 +73,3 @@ where `roach_name` is the IP or hostname of the ROACH on the network.
 By default this will test only the ADC in ZDOK 0 of the ROACH; to test 
 the one in ZDOK 1 add `-z 1`.
 If you'd like to see a list of options you can use `--help`.
-
-Using the Stand-alone Binary
-----------------------------
-A stand-alone binary test-script has been compiled for the PowerPC 
-platform and requires the Borph kernel to be running on the ROACH.
-This binary is located in the 'bin' folder and can be run directly 
-on the ROACH using:
-```bash
-./bin/test_adc5g -v
-```
-The stand-alone binary takes all the same options as the Python 
-test suite since it's simply a "frozen" version of that suite.
