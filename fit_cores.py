@@ -52,7 +52,6 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   
   del_phi = 2 * math.pi * sig_freq / samp_freq
 #  ifd=open(fname, 'r')
-  ofd = open(fname + ".ogp", 'a')
   if prnt:
     outfile = fname + ".a"
     cfd1 = open(outfile, 'w')
@@ -185,11 +184,13 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
 #     sum_result[8]/result_cnt,\
 #     sum_result[11]/result_cnt, sum_result[14]/result_cnt, result_cnt)
   if prnt and result_cnt > 1:
+    ofd = open(fname + ".ogp", 'a')
     avg_result = sum_result/result_cnt
     avg_result[0] = sig_freq
     ogp = tuple(avg_result)
     print >>ofd, result_cnt,
     print >>ofd,  result_fmt % ogp
+    ofd.close()
     print "average of %d measurements" % (result_cnt)
     print "#avg    %7.4f %7.4f %8.4f" %  (ogp[1], ogp[2], 0)
     print "core A  %7.4f %7.4f %8.4f" %  ogp[3:6]
@@ -240,7 +241,6 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
 	    (code, e[0], e[2], e[1], e[3])
       else:
         print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0)
-  ofd.close()
   if prnt:
     cfd1.close()
     cfd2.close()
