@@ -87,9 +87,9 @@ class TestBasics(TestBase):
 
     def test_has_scope(self):
         "confirm the design has the needed scope"
-        self.assertIn('raw_%d_bram' % self._zdok_n, self._devices)
-        self.assertIn('raw_%d_ctrl' % self._zdok_n, self._devices)
-        self.assertIn('raw_%d_status' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_bram' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_ctrl' % self._zdok_n, self._devices)
+        self.assertIn('scope_raw_%d_snap_status' % self._zdok_n, self._devices)
 
 
 class TestCalibration(TestBase):
@@ -97,12 +97,19 @@ class TestCalibration(TestBase):
     @classmethod
     def setUpClass(cls):
         TestBase.setUpClass()
+        adc5g.set_test_mode(cls._roach, cls._zdok_n)
+        adc5g.sync_adc(cls._roach)
         cls._optimal_phase, cls._glitches = adc5g.calibrate_mmcm_phase(
-            cls._roach, cls._zdok_n, ['raw_%d' % cls._zdok_n])
+            cls._roach, cls._zdok_n, ['scope_raw_%d_snap' % cls._zdok_n])
 
     def test_optimal_solution_found(self):
         "test if calibration finds optimal MMCM phase"
         self.assertIsNotNone(self._optimal_phase)
+
+    @classmethod
+    def tearDownClass(cls):
+        TestBase.tearDownClass()
+        adc5g.unset_test_mode(cls._roach, cls._zdok_n)
 
 
 class TestInitialSPIControl(TestBase):
@@ -153,8 +160,8 @@ class TestSnapshot(TestBase):
         TestBase.setUpClass()
         cls._sample_rate = cls._clk_rate * 2.
         cls._tone_per = int(round(cls._sample_rate / cls._tone_freq))
-        cls._raw = adc5g.get_snapshot(cls._roach, 'raw_%d' % cls._zdok_n)
-        cls._raw = list(samp-128 for samp in cls._raw)
+        cls._raw = adc5g.get_snapshot(cls._roach, 'scope_raw_%d_snap' % cls._zdok_n)
+        cls._raw = list(samp/128. for samp in cls._raw)
         cls._bias = (cls._raw[0] + cls._raw[cls._tone_per/2])/2.
         cls._amp = sqrt((cls._raw[0]-cls._bias)**2 + (cls._raw[cls._tone_per/4]-cls._bias)**2)
         cls._phase = atan2((cls._raw[0]-cls._bias)/cls._amp, (cls._raw[125]-cls._bias)/cls._amp)
@@ -220,7 +227,7 @@ def main():
                       dest="remote", metavar="HOST:PORT",
                       help="run tests remotely over katcp using HOST and PORT")
     parser.add_option("-b", "--boffile",
-                      dest="boffile", metavar="BOFFILE", default="digicom_r2_2500MHz.bof",
+                      dest="boffile", metavar="BOFFILE", default="adc5g_test_rev2.bof.gz",
                       help="test using the BOFFILE bitcode")
     parser.add_option("-z", "--zdok",
                       dest="zdok_n", metavar="ZDOK", type='int', default=0,
@@ -254,7 +261,7 @@ def main():
     zdok_n = options.zdok_n
     clk_rate = options.clk_rate
     tone_freq = options.tone_freq
-    tone_amp = options.tone_amp * 128.
+    tone_amp = options.tone_amp
     run_tests(verbosity)
 
 
