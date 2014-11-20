@@ -10,6 +10,19 @@ from spi import (
     )
 
 
+def pretty_glitch_profile(opt, glitches): 
+    hglitches = glitches[0:len(glitches)/2]
+    max_glitches = float(max(hglitches))
+    gstr = "" # initialize our glitch string
+    for p, g in enumerate(hglitches):
+        gval = int(9 * g/max_glitches)
+        if p == opt: # boldify this one
+            gstr += "\033[1m" + str(gval) + "\033[0m"
+        else:
+            gstr += str(gval)
+    return gstr
+
+
 def total_glitches(core, bitwidth=8):
     ramp_max = 2**bitwidth - 1
     glitches = 0
