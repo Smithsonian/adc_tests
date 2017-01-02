@@ -1,5 +1,6 @@
 # run 'ipython --pylab -i'
-# and then in ipython: '%run -i rww_tools.py'
+# and then in ipython run:
+#    '%run -i /home/rwilson/adc_tests/rww_tools.py setup roach2-01'
 # the -i there causes rww_tools.py to be run in the interactive name space
 import sys
 import os
@@ -19,7 +20,10 @@ import numpy as np
 from numpy import math
 import fit_cores
 lanio = "lanio 131.142.9.146 "
-DEFAULT_BITCODE = 'sma_corr_2014_Apr_21_1603.bof.gz'
+# DEFAULT_BITCODE = 'sma_corr_2014_Apr_21_1603.bof.gz' 
+# DEFAULT_BITCODE = 'sma_corr_2014_Oct_22_1745.bof.gz'
+#DEFAULT_BITCODE = 'sma_corr_2014_Nov_03_1817.bof.gz'
+DEFAULT_BITCODE = 'sma_corr_2015_Jan_22_0908.bof.gz'
 
 freq = 10.070801
 pwr = 1.0
