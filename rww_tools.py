@@ -5,12 +5,10 @@
 import sys
 import os
 import time
-from corr import katcp_wrapper
-from corr.snap import snapshots_get
+from adc5g import katcp_wrapper
 from struct import pack, unpack
 from scipy.signal import correlate
 from scipy.fftpack import fft, rfft
-#import katcp_wrapper
 roach2=katcp_wrapper.FpgaClient('roach2-00.cfa.harvard.edu')
 zdok=0
 import adc5g

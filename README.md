@@ -8,13 +8,12 @@ Requirements
 ------------
 * Python >= 2.7
 * numpy >= 1.6.2 (only for the 'array' object)
-* corr >= 0.6.9 (only for katcp_wrapper.FpgaClient)
 
 Getting Started
 ---------------
 Begin with connecting to your ROACH and programming it:
 ```python
-from corr import katcp_wrapper
+from adc5g import katcp_wrapper
 roach = katcp_wrapper.FpgaClient(host, port)
 roach.is_connected() # should return True
 roach.progdev(bitcode)

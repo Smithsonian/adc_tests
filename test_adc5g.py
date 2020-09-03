@@ -5,7 +5,7 @@ from optparse import OptionParser
 
 import adc5g
 try:
-    from corr import katcp_wrapper
+    from . import katcp_wrapper
     REMOTE_POSSIBLE = True
 except ImportError:
     REMOTE_POSSIBLE = False
@@ -253,7 +253,7 @@ def main():
             roach = katcp_wrapper.FpgaClient(*options.remote.split(':'))
             roach.wait_connected(1)
         else:
-            raise ImportError("corr package was not found, "
+            raise ImportError("katcp_wrapper was not found, "
                               "remote operation not possible!")
     else:
         roach = adc5g.LocalRoachClient()
