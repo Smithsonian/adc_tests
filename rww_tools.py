@@ -68,7 +68,7 @@ def dosnap(fr=0, name=None, rpt = 1, donot_clear=False, plot=True):
       plt.show(block = False)
       rmsSnap = np.std(snap)
       loadingFactor = -20.0*math.log10(128/rmsSnap)
-      print "Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
+      print("Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor))
     if i == rpt-1:
       np.savetxt(name, snap,fmt='%d')
     ogp, pwr_sinad = fit_cores.fit_snap(snap, fr, samp_freq, name,\
@@ -84,12 +84,12 @@ def get_rms():
   snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
   rmsSnap = np.std(snap)
   loadingFactor = -20.0*math.log10(128/rmsSnap)
-  print "If0 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
+  print("If0 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor))
   set_zdok(1)
   snap=adc5g.get_snapshot(roach2, snap_name, man_trig=True, wait_period=2)
   rmsSnap = np.std(snap)
   loadingFactor = -20.0*math.log10(128/rmsSnap)
-  print "If1 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor)
+  print("If1 Rms = %f, loading factor = %f" % (rmsSnap,loadingFactor))
   if zdok != save_zdok:
     set_zdok(save_zdok)
 
@@ -121,12 +121,12 @@ def simpsd(freq=318.0, rpt = 1, exact=True):
     else:
       sp += power
   sp /= rpt
-  print "about to plot", len(freqs)
+  print("about to plot", len(freqs))
   plt.step(freqs, 10*np.log10(sp))
   plt.show(block = False)
   fd = open("sim.psd", 'w')
   for i in range(len(sp)):
-    print >>fd, "%7.2f %6.1f" % (freqs[i]/1e6, 10*np.log10(sp[i]))
+    print("%7.2f %6.1f" % (freqs[i]/1e6, 10*np.log10(sp[i])), file=fd)
 
 def get_sim_data(freq, exact=True):
   """
@@ -258,17 +258,17 @@ def hist_from_snapshots(rpt = 10):
       hist3, hist4))
   np.savetxt("hist_cores", data, fmt=("%d"))
 #  print "all ",np.sum(hist_all[0:128]), np.sum(hist_all[128:256])
-  print "core a  ",np.sum(hist1[0:128]), np.sum(hist1[129:256])
-  print "core b  ",np.sum(hist3[0:128]), np.sum(hist3[129:256])
-  print "core c  ",np.sum(hist2[0:128]), np.sum(hist2[129:256])
-  print "core d  ",np.sum(hist4[0:128]), np.sum(hist4[129:256])
+  print("core a  ",np.sum(hist1[0:128]), np.sum(hist1[129:256]))
+  print("core b  ",np.sum(hist3[0:128]), np.sum(hist3[129:256]))
+  print("core c  ",np.sum(hist2[0:128]), np.sum(hist2[129:256]))
+  print("core d  ",np.sum(hist4[0:128]), np.sum(hist4[129:256]))
 
 # For now get_histogram has cores b and c reversed.
 def get_hist(fname="hist_cores"):
   data = np.empty(shape=(256,5), dtype=int)
   for c in range(4):
     data[:, c+1] = adc5g.get_histogram(roach2, zdok, "acbd"[c])
-  data[:,0] = range(-128, 128)
+  data[:,0] = list(range(-128, 128))
   np.savetxt(fname, data, fmt=("%d"))
 
 def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
@@ -291,7 +291,7 @@ def multifreq(start=100, end=560, step=50, repeat=5, do_sfdr=False):
     ogp, avg_pwr_sinad = dosnap(rpt=repeat, name=name,\
           donot_clear = n!=nstart, plot=False)
     sinad = 10.0*np.log10(avg_pwr_sinad)
-    print >>sfd, "%8.3f %7.2f" % (freq, sinad)
+    print("%8.3f %7.2f" % (freq, sinad), file=sfd)
     if do_sfdr:
       dopsd(rpt=3)
       fit_cores.dosfdr(freq)
@@ -325,7 +325,7 @@ def freqResp(start=100, end=2400, delta=50, repeat=10,powerlevel=7):
     power=10*log10(sp)
 #    step(freqs, power)
     peakpower=max(power)
-    print freq,peakpower
+    print(freq,peakpower)
     output="%f %f\n" % (freq,peakpower)
     frfile.write(output)
   frfile.close()
@@ -406,16 +406,16 @@ def calibrate(verbose=False):
   opt0, glitches0 = adc5g.calibrate_mmcm_phase(roach2, 0, \
       [snap_name,])
   if verbose or (opt0 == None):
-    print "zodk0 ", opt0, glitches0
+    print("zodk0 ", opt0, glitches0)
   else:
-    print "zodk0", opt0
+    print("zodk0", opt0)
   set_zdok(1)
   opt1, glitches1 = adc5g.calibrate_mmcm_phase(roach2, 1, \
       [snap_name,])
   if verbose or (opt1 == None):
-    print "zodk1 ", opt1, glitches1
+    print("zodk1 ", opt1, glitches1)
   else:
-    print "zodk1", opt1
+    print("zodk1", opt1)
   set_zdok(save_zdok)
   adc5g.unset_test_mode(roach2, 0)
   adc5g.unset_test_mode(roach2, 1)
@@ -438,11 +438,11 @@ def get_ogp():
   and print them.
   """
   ogp = get_ogp_array()
-  print "zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)"
-  print "core A  %7.4f %7.4f %8.4f" %  (ogp[0], ogp[1], ogp[2])
-  print "core B  %7.4f %7.4f %8.4f" %  (ogp[3], ogp[4], ogp[5])
-  print "core C  %7.4f %7.4f %8.4f" %  (ogp[6], ogp[7], ogp[8])
-  print "core D  %7.4f %7.4f %8.4f" %  (ogp[9], ogp[10], ogp[11])
+  print("zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)")
+  print("core A  %7.4f %7.4f %8.4f" %  (ogp[0], ogp[1], ogp[2]))
+  print("core B  %7.4f %7.4f %8.4f" %  (ogp[3], ogp[4], ogp[5]))
+  print("core C  %7.4f %7.4f %8.4f" %  (ogp[6], ogp[7], ogp[8]))
+  print("core D  %7.4f %7.4f %8.4f" %  (ogp[9], ogp[10], ogp[11]))
 
 def set_ogp(fname = None):
   """
@@ -474,9 +474,9 @@ def get_inl():
   print them.
   """
   a = get_inl_array()
-  print "lvl  A     B     C     D"
+  print("lvl  A     B     C     D")
   for level in range(17):
-    print "%3d %5.2f %5.2f %5.2f %5.2f" % tuple(a[level])
+    print("%3d %5.2f %5.2f %5.2f %5.2f" % tuple(a[level]))
     
 
 def set_inl(fname = None):
@@ -507,19 +507,19 @@ def set_freq(fr, centered = True, prnt=True):
     base_freq = samp_freq / numpoints
     n = 2*int(fr/(2.0*base_freq))+1
     freq = base_freq*n
-    print "n, freq =  ", n, freq
+    print("n, freq =  ", n, freq)
   else:
     freq=fr
   os.system(lanio + "\":FREQ " + str(freq) + " MHz\"")
   if prnt:
-    print "%.6f" % (freq)
+    print("%.6f" % (freq))
   time.sleep(0.5)
   
 def get_freq():
   """
   Retreive the frequency from the Agilent Synthesizer and print it (in Hz).
   """
-  print os.system(lanio + "\"FREQ?\"")
+  print(os.system(lanio + "\"FREQ?\""))
 
 def set_pwr(p):
   """
@@ -534,78 +534,78 @@ def get_pwr():
   """
   Retreive the power level from the Agilent Synthesizer and print it.
   """
-  print os.system(lanio + "\"POW?\"")
+  print(os.system(lanio + "\"POW?\""))
 
 def set_offs(o1, o2, o3, o4):
   """
   Set the offsets for each core in the order a, b, c, d.
   """
   t = float(o1)
-  print math.floor(.5+t*255/100.)+0x80,
+  print(math.floor(.5+t*255/100.)+0x80, end=' ')
   adc5g.set_spi_offset(roach2,zdok, 1, t)
   t = float(o2)
-  print math.floor(.5+t*255/100.)+0x80,
+  print(math.floor(.5+t*255/100.)+0x80, end=' ')
   adc5g.set_spi_offset(roach2,zdok, 2, t)
   t = float(o3)
-  print math.floor(.5+t*255/100.)+0x80,
+  print(math.floor(.5+t*255/100.)+0x80, end=' ')
   adc5g.set_spi_offset(roach2,zdok, 3, t)
   t = float(o4)
-  print math.floor(.5+t*255/100.)+0x80
+  print(math.floor(.5+t*255/100.)+0x80)
   adc5g.set_spi_offset(roach2,zdok, 4, t)
 def get_offs():
   """
   Get and print the offsets for the four cores of the ADC.
   """
   for i in range(1,5):
-    print "%.3f " % adc5g.get_spi_offset(roach2,zdok,i),
-  print
+    print("%.3f " % adc5g.get_spi_offset(roach2,zdok,i), end=' ')
+  print()
 
 def set_gains(g1, g2, g3, g4):
   """
   Set the gains for each core in the order a, b, c, d.
   """
   t = float(g1)
-  print math.floor(.5+t*255/36.)+0x80,
+  print(math.floor(.5+t*255/36.)+0x80, end=' ')
   adc5g.set_spi_gain(roach2,zdok, 1, t)
   t = float(g2)
-  print math.floor(.5+t*255/36.)+0x80,
+  print(math.floor(.5+t*255/36.)+0x80, end=' ')
   adc5g.set_spi_gain(roach2,zdok, 2, t)
   t = float(g3)
-  print math.floor(.5+t*255/36.)+0x80,
+  print(math.floor(.5+t*255/36.)+0x80, end=' ')
   adc5g.set_spi_gain(roach2,zdok, 3, t)
   t = float(g4)
-  print math.floor(.5+t*255/36.)+0x80
+  print(math.floor(.5+t*255/36.)+0x80)
   adc5g.set_spi_gain(roach2,zdok, 4, t)
 def get_gains():
   """
   Get and print the gains for the four cores of the ADC.
   """
   for i in range(1,5):
-    print "%.3f " % adc5g.get_spi_gain(roach2,zdok,i),
-  print
+    print("%.3f " % adc5g.get_spi_gain(roach2,zdok,i), end=' ')
+  print()
 def set_phase(p1, p2, p3, p4):
   """
   Set the phases (delays) for each core in the order a, b, c, d.
   """
   t = float(p1)
-  print math.floor(.5+t*255/28.)+0x80,
+  print(math.floor(.5+t*255/28.)+0x80, end=' ')
   adc5g.set_spi_phase(roach2,zdok, 1, t)
   t = float(p2)
-  print math.floor(.5+t*255/28.)+0x80,
+  print(math.floor(.5+t*255/28.)+0x80, end=' ')
   adc5g.set_spi_phase(roach2,zdok, 2, t)
   t = float(p3)
-  print math.floor(.5+t*255/28.)+0x80,
+  print(math.floor(.5+t*255/28.)+0x80, end=' ')
   adc5g.set_spi_phase(roach2,zdok, 3, t)
   t = float(p4)
-  print math.floor(.5+t*255/28.)+0x80
+  print(math.floor(.5+t*255/28.)+0x80)
   adc5g.set_spi_phase(roach2,zdok, 4, t)
 def get_phase():
   """
   Get and print the delays for the four cores of the ADC.
   """
   for i in range(1,5):
-    print "%.3f " % adc5g.get_spi_phase(roach2,zdok,i),
-  print
+    print("%.3f " % adc5g.get_spi_phase(roach2,zdok,i), end=' ')
+  print()
 
 def get_inl_array():
   """
@@ -614,7 +614,7 @@ def get_inl_array():
   inl = np.zeros((5,17), dtype='float')
   for chan in range(1,5):
     inl[chan] = adc5g.get_inl_registers(roach2, zdok, chan)
-  inl[0] = range(0, 257,16)
+  inl[0] = list(range(0, 257,16))
   return inl.transpose()
 
 def get_ogp_array():
@@ -645,7 +645,7 @@ def set_zdok(zd):
   inl_name = inst_name+"/configFiles/inl_if%d" % (zd)
 
 def get_zdok():
-  print "zdok %d, snapshot %s" % (zdok, snap_name)
+  print("zdok %d, snapshot %s" % (zdok, snap_name))
 
 def setup(r_name='roach2-00', prg_nam=DEFAULT_BITCODE):
   global roach_name, inst_name, roach2, prog_name, zdok, samp_freq, numpoints
@@ -662,11 +662,11 @@ def setup(r_name='roach2-00', prg_nam=DEFAULT_BITCODE):
     samp_freq = 2288.
     numpoints = 32768
   elif prog_name[:10] == 'adc5g_test':
-    print "this is adc test code"
+    print("this is adc test code")
     samp_freq = 5000.0
     numpoints = 16384
   else:
-    print "I do not recognize the bit code name, treating it as correlator code"
+    print("I do not recognize the bit code name, treating it as correlator code")
     samp_freq = 2288.
     numpoints = 32768
   roach_name = r_name
@@ -710,9 +710,9 @@ def og_from_noise(fname=None, rpt=100, printEach=False):
     sum_result += result
     sum_cnt += 1
     if printEach:
-      print "%.4f "*15 % tuple(result)
+      print("%.4f "*15 % tuple(result))
   sum_result /= sum_cnt
-  print "%.4f "*15 % tuple(sum_result)
+  print("%.4f "*15 % tuple(sum_result))
   np.savetxt(fname, sum_result[3:], fmt="%8.4f")
 
 def phase_curve():
@@ -724,7 +724,7 @@ def phase_curve():
   for i in range(-10,11):
     set_phase(p[1]+ f*i,p[2] -f*i,p[3],p[4])
     ogp, gar = dosnap(rpt=5, plot=False)
-    print >>ofd, "%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8])
+    print("%.3f %.3f %.3f" % (f*i, ogp[5], ogp[8]), file=ofd)
   set_phase(p[1],p[2],p[3],p[4])
 
 def dohist(base_name='hist', type='sin', gethist=True, plt=True):
@@ -749,11 +749,11 @@ def dohist(base_name='hist', type='sin', gethist=True, plt=True):
   ogp=np.array([z_fact*z1, a1p, 0, z_fact*z2, a2p, 0, z_fact*z3, a3p, 0, \
       z_fact*z4, a4p, 0])
   avz=(z1+z2+z3+z4)*z_fact/4.0
-  print "#avg    %7.4f %7.4f %8.4f" %  (ogp[1], avamp, 0)
-  print "core A  %7.4f %7.4f %8.4f" %  tuple(ogp[0:3])
-  print "core B  %7.4f %7.4f %8.4f" %  tuple(ogp[3:6])
-  print "core C  %7.4f %7.4f %8.4f" %  tuple(ogp[6:9])
-  print "core D  %7.4f %7.4f %8.4f" %  tuple(ogp[9:12])
+  print("#avg    %7.4f %7.4f %8.4f" %  (ogp[1], avamp, 0))
+  print("core A  %7.4f %7.4f %8.4f" %  tuple(ogp[0:3]))
+  print("core B  %7.4f %7.4f %8.4f" %  tuple(ogp[3:6]))
+  print("core C  %7.4f %7.4f %8.4f" %  tuple(ogp[6:9]))
+  print("core D  %7.4f %7.4f %8.4f" %  tuple(ogp[9:12]))
   np.savetxt(base_name+"_ogp.meas", ogp, fmt= "%8.4f")
   r_name=base_name+'.res'
   np.savetxt(r_name, np.transpose(res), fmt='%3i %6.3f %6.3f %6.3f %6.3f')
@@ -804,7 +804,7 @@ def xcorr_snaps(set_delay = True):
   cntr_chan = xcn[0][maxchan]
   if(set_delay):
     set_adc_delay(cntr_chan)
-  print  xcn[1][maxchan], cntr_chan
+  print(xcn[1][maxchan], cntr_chan)
 
 def fx_snaps(n = 10):
   global raw0, raw1, xc, xn
@@ -827,7 +827,7 @@ def fx_snaps(n = 10):
 #      ac1 += abs(ft1)*abs(ft1)
   xn = xc/(sqrt(ac0*ac1))
   np.savetxt('xn.txt', xn.view(float).reshape(-1, 2))
-  print np.mean(abs(xn)), "+-", np.std(abs(xn))
+  print(np.mean(abs(xn)), "+-", np.std(abs(xn)))
 
 #setup()
 #print name = "__name__"
@@ -846,13 +846,13 @@ if __name__ == "__main__" and len(sys.argv) > 2:
         else:
           for i in range(int(l[0]), int(l[-1])+1):
             r_list.append(i)
-        print "Roaches to be set up", r_list
+        print("Roaches to be set up", r_list)
     
     for n in r_list:
       roach2_host = 'roach2-%02d' % (int(n))
       setup(r_name = roach2_host)
       for zdok in [0, 1]:
-        print "Running og_from_noise for %s:zdok=%d" % (roach2_host, zdok)
+        print("Running og_from_noise for %s:zdok=%d" % (roach2_host, zdok))
         set_zdok(zdok)
         set_ogp()
         og_from_noise()
@@ -860,5 +860,5 @@ if __name__ == "__main__" and len(sys.argv) > 2:
   elif command == 'setup':
     setup(sys.argv[2])
   else:
-    print "Please run setup('roach2-nn') before trying anything else"
+    print("Please run setup('roach2-nn') before trying anything else")
 

@@ -61,7 +61,7 @@ class DummyRoachClient:
         """
         Returns a fake list of devices.
         """
-        return self._devices.keys()
+        return list(self._devices.keys())
 
     def progdev(self, boffile):
         """

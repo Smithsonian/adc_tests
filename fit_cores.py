@@ -160,13 +160,13 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   avdly = (dly1+dly2+dly3+dly4)/4.0
 #  print s1a, c1a, s2a, c2a, s3a, c3a, s4a, c4a
   if prnt:
-    print "#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq)
-    print "#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly)
-    print "core A  %7.4f %7.4f %8.4f" %  (z1 -true_zero, a1p, dly1-avdly)
-    print "core B  %7.4f %7.4f %8.4f" %  (z3 -true_zero, a3p, dly3-avdly)
-    print "core C  %7.4f %7.4f %8.4f" %  (z2 -true_zero, a2p, dly2-avdly)
-    print "core D  %7.4f %7.4f %8.4f" %  (z4 -true_zero, a4p, dly4-avdly)
-    print "\nsinad = %.2f" % (10.0*math.log10(pwr_sinad))
+    print("#%6.2f  zero(mV) amp(%%)  dly(ps) (adj by .4, .14, .11)" % (sig_freq))
+    print("#avg    %7.4f %7.4f %8.4f" %  (avz, avamp, avdly))
+    print("core A  %7.4f %7.4f %8.4f" %  (z1 -true_zero, a1p, dly1-avdly))
+    print("core B  %7.4f %7.4f %8.4f" %  (z3 -true_zero, a3p, dly3-avdly))
+    print("core C  %7.4f %7.4f %8.4f" %  (z2 -true_zero, a2p, dly2-avdly))
+    print("core D  %7.4f %7.4f %8.4f" %  (z4 -true_zero, a4p, dly4-avdly))
+    print("\nsinad = %.2f" % (10.0*math.log10(pwr_sinad)))
 
   if clear_avgs:
     sum_result = zeros((15), dtype=float)
@@ -188,16 +188,16 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
     avg_result = sum_result/result_cnt
     avg_result[0] = sig_freq
     ogp = tuple(avg_result)
-    print >>ofd, result_cnt,
-    print >>ofd,  result_fmt % ogp
+    print(result_cnt, end=' ', file=ofd)
+    print(result_fmt % ogp, file=ofd)
     ofd.close()
-    print "average of %d measurements" % (result_cnt)
-    print "#avg    %7.4f %7.4f %8.4f" %  (ogp[1], ogp[2], 0)
-    print "core A  %7.4f %7.4f %8.4f" %  ogp[3:6]
-    print "core B  %7.4f %7.4f %8.4f" %  ogp[6:9]
-    print "core C  %7.4f %7.4f %8.4f" %  ogp[9:12]
-    print "core D  %7.4f %7.4f %8.4f" %  ogp[12:15]
-    print
+    print("average of %d measurements" % (result_cnt))
+    print("#avg    %7.4f %7.4f %8.4f" %  (ogp[1], ogp[2], 0))
+    print("core A  %7.4f %7.4f %8.4f" %  ogp[3:6])
+    print("core B  %7.4f %7.4f %8.4f" %  ogp[6:9])
+    print("core C  %7.4f %7.4f %8.4f" %  ogp[9:12])
+    print("core D  %7.4f %7.4f %8.4f" %  ogp[12:15])
+    print()
 
   # for each core (n), accumulate the sum of the residuals at each output code
   # in code_errors[code][n]
@@ -206,28 +206,28 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
   for i in range(data_cnt/4):
     code = core1[i]
     if prnt:
-      print >>cfd1, "%d %d %.2f" % (4 * i, code, Fit1[i])
+      print("%d %d %.2f" % (4 * i, code, Fit1[i]), file=cfd1)
     code_errors[code+128][0] += code - Fit1[i]
     ce_counts[code+128][0] += 1
   Fit2 = fitsin(plsq2[0], args2[0], args2[1])
   for i in range(data_cnt/4):
     code = core2[i]
     if prnt:
-      print >>cfd3, "%d %d %.2f" % (4 * i + 1, code, Fit2[i])
+      print("%d %d %.2f" % (4 * i + 1, code, Fit2[i]), file=cfd3)
     code_errors[code+128][1] += code - Fit2[i]
     ce_counts[code+128][1] += 1
   Fit3 = fitsin(plsq3[0], args3[0], args3[1])
   for i in range(data_cnt/4):
     code = core3[i]
     if prnt:
-      print >>cfd2, "%d %d %.2f" % (4 * i + 2, code, Fit3[i])
+      print("%d %d %.2f" % (4 * i + 2, code, Fit3[i]), file=cfd2)
     code_errors[code+128][2] += code - Fit3[i]
     ce_counts[code+128][2] += 1
   Fit4 = fitsin(plsq4[0], args4[0], args4[1])
   for i in range(data_cnt/4):
     code = core4[i]
     if prnt:
-      print >>cfd4, "%d %d %.2f" % (4 * i + 3, code, Fit4[i])
+      print("%d %d %.2f" % (4 * i + 3, code, Fit4[i]), file=cfd4)
     code_errors[code+128][3] += code - Fit4[i]
     ce_counts[code+128][3] += 1
   if prnt:
@@ -237,10 +237,10 @@ def fit_snap(adc, sig_freq, samp_freq, fname, clear_avgs=True, prnt=True):
     for code in range(256):
       if ce_counts[code].min() > 1:
         e = code_errors[code]/ce_counts[code]
-        print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % \
-	    (code, e[0], e[2], e[1], e[3])
+        print("%3d %5.3f %5.3f %5.3f %5.3f" % \
+	    (code, e[0], e[2], e[1], e[3]), file=rfd)
       else:
-        print >>rfd, "%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0)
+        print("%3d %5.3f %5.3f %5.3f %5.3f" % (code,0,0,0,0), file=rfd)
   if prnt:
     cfd1.close()
     cfd2.close()
@@ -263,7 +263,7 @@ def fit_inl(fname='t.res'):
   start_data = int(data[0][0])
   file_limit = len(data[0])
   data_limit = start_data + file_limit
-  print start_data, data_limit
+  print(start_data, data_limit)
   if data[0][data_limit - start_data - 1] != data_limit - 1:
     raise RuntimeError("there are holes in the data file")
 #    print "there are holes in the data file"
@@ -289,7 +289,7 @@ def fit_inl(fname='t.res'):
     av2 = sum(data[2][a:b]*wts[wt_a:wt_b])/wt
     av3 = sum(data[3][a:b]*wts[wt_a:wt_b])/wt
     av4 = sum(data[4][a:b]*wts[wt_a:wt_b])/wt
-    print "%d %7.5f %7.5f %7.5f %7.5f" %  (16*corr_level,av1,av2,av3,av4)
+    print("%d %7.5f %7.5f %7.5f %7.5f" %  (16*corr_level,av1,av2,av3,av4))
     corrections[corr_level][0] = 16*corr_level
     corrections[corr_level][1] = av1
     corrections[corr_level][2] = av2
@@ -346,8 +346,8 @@ def dosfdr(sig_freq, fname = 'psd'):
   outfd = open('sfdr', 'a')
   sfdr = 10.0*math.log10(sig_pwr / spur_pwr)
   sinad = 10.0*math.log10(sig_pwr/(tot_pwr - sig_pwr))
-  print >> outfd, "%8.3f %6.2f %6.2f %6.2f %7.2f" %\
-      (sig_freq, sig_db, sfdr, sinad, spur_freq)
+  print("%8.3f %6.2f %6.2f %6.2f %7.2f" %\
+      (sig_freq, sig_db, sfdr, sinad, spur_freq), file=outfd)
 
 # Start of code for histograms
 def cumsin(p, codes):
@@ -365,7 +365,7 @@ def cumsin(p, codes):
 #  return array([(sign(a)+1)/2 if abs(a) > 1.0 else 1-arccos(a)/pi for a in arg])
 
 def pltcumsin(p):
-  codes = array(range(0,256), dtype=float)
+  codes = array(list(range(0,256)), dtype=float)
   cum = cumsin(p, codes)
   plot(codes,cum)
   return cum
@@ -376,7 +376,7 @@ def cumgaussian(p, codes):
   return (1-erfc(arg)/2.0)
 
 def pltcumgaussian(p):
-  codes = array(range(0,256), dtype=float)
+  codes = array(list(range(0,256)), dtype=float)
   cum = cumgaussian(p, codes)
   plot(codes,cum)
   return cum

@@ -1,5 +1,5 @@
 from matplotlib.mlab import psd, detrend_mean
-from tools import get_snapshot
+from .tools import get_snapshot
 
 
 def get_psd(roach, snap_name, samp_freq, bitwidth=8, nfft=256):

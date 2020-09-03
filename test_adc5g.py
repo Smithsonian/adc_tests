@@ -207,7 +207,7 @@ def print_tests(option, opt, value, parser):
                 msg += " .%d %s\r\n" % (j, test.__doc__)
             else:
                 msg += " .%d %s\r\n" % (j, name)
-    print msg
+    print(msg)
     sys.exit()
 
 

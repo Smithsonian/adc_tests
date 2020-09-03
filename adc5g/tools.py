@@ -1,10 +1,10 @@
 from struct import pack, unpack
-from opb import (
+from .opb import (
     OPB_CONTROLLER,
     OPB_DATA_FMT,
     inc_mmcm_phase,
     )
-from spi import (
+from .spi import (
     get_spi_control,
     set_spi_control,
     )
@@ -78,14 +78,14 @@ def set_test_mode(roach, zdok_n):
     test_mode(roach, zdok_n, on=True)
     control = get_spi_control(roach, zdok_n)
     if control['test'] != 1:
-        raise RuntimeError, "Set test mode failed!"
+        raise RuntimeError("Set test mode failed!")
 
 
 def unset_test_mode(roach, zdok_n):
     test_mode(roach, zdok_n, on=False)
     control = get_spi_control(roach, zdok_n)
     if control['test'] != 0:
-        raise RuntimeError, "Un-set test mode failed!"
+        raise RuntimeError("Un-set test mode failed!")
 
 
 def sync_adc(roach, zdok_0=True, zdok_1=True):
